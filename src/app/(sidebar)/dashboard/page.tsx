@@ -5,6 +5,8 @@ import { getDashboardData } from '@/lib/actions/dashboard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import prisma from '@/lib/prisma';
 import { Button } from '@/components/ui/button';
+
+export const dynamic = 'force-dynamic';
 import {
   IconUsers,
   IconUserPlus,

@@ -19,145 +19,173 @@ export async function getDashboardData(
 
   const cacheKey = CACHE_KEYS.dashboardSummary(scope);
 
-  return await cacheService.getOrSet(cacheKey, CACHE_TTL.DASHBOARD, async () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+  try {
+    return await cacheService.getOrSet(cacheKey, CACHE_TTL.DASHBOARD, async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Get the date 7 days ago for recent activity
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      // Get the date 7 days ago for recent activity
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    // Base filter for user-specific data
-    let userFilter: Record<string, string> = {};
+      // Base filter for user-specific data
+      let userFilter: Record<string, string> = {};
 
-    // For telecallers, filter by assigned enquiries
-    if (userRole === 'telecaller' && userId) {
-      userFilter = { assignedToUserId: userId };
-    }
+      // For telecallers, filter by assigned enquiries
+      if (userRole === 'telecaller' && userId) {
+        userFilter = { assignedToUserId: userId };
+      }
 
-    // For executives, filter by branch
-    if (userRole === 'executive' && userBranch) {
-      userFilter = { branchId: userBranch };
-    }
+      // For executives, filter by branch
+      if (userRole === 'executive' && userBranch) {
+        userFilter = { branchId: userBranch };
+      }
 
-  // For admins, no filtering (see all data)
+      // For admins, no filtering (see all data)
 
-  // Get basic enquiry stats
-  const [
-    totalEnquiries,
-    newEnquiriesCount,
-    totalCalls,
-    overdueFollowUps,
-    todayFollowUps,
-    interestedLeads,
-    recentCallLogs,
-    enrolledEnquiries,
-  ] = await Promise.all([
-    // Total enquiries
-    prisma.enquiry.count({
-      where: userFilter,
-    }),
+      // Get basic enquiry stats
+      const [
+        totalEnquiries,
+        newEnquiriesCount,
+        totalCalls,
+        overdueFollowUps,
+        todayFollowUps,
+        interestedLeads,
+        recentCallLogs,
+        enrolledEnquiries,
+      ] = await Promise.all([
+        // Total enquiries
+        prisma.enquiry.count({
+          where: userFilter,
+        }),
 
-    // New enquiries (created in last 7 days)
-    prisma.enquiry.count({
-      where: {
-        ...userFilter,
-        createdAt: { gte: sevenDaysAgo },
-      },
-    }),
+        // New enquiries (created in last 7 days)
+        prisma.enquiry.count({
+          where: {
+            ...userFilter,
+            createdAt: { gte: sevenDaysAgo },
+          },
+        }),
 
-    // Total calls
-    prisma.callLog.count({
-      where: {
-        enquiry: userFilter,
-      },
-    }),
+        // Total calls
+        prisma.callLog.count({
+          where: {
+            enquiry: userFilter,
+          },
+        }),
 
-    // Overdue follow-ups
-    prisma.followUp.count({
-      where: {
-        enquiry: userFilter,
-        status: FollowUpStatus.PENDING,
-        scheduledAt: { lt: today },
-      },
-    }),
+        // Overdue follow-ups
+        prisma.followUp.count({
+          where: {
+            enquiry: userFilter,
+            status: FollowUpStatus.PENDING,
+            scheduledAt: { lt: today },
+          },
+        }),
 
-    // Today's follow-ups
-    prisma.followUp.count({
-      where: {
-        enquiry: userFilter,
-        status: FollowUpStatus.PENDING,
-        scheduledAt: {
-          gte: today,
-          lt: tomorrow,
+        // Today's follow-ups
+        prisma.followUp.count({
+          where: {
+            enquiry: userFilter,
+            status: FollowUpStatus.PENDING,
+            scheduledAt: {
+              gte: today,
+              lt: tomorrow,
+            },
+          },
+        }),
+
+        // Interested leads
+        prisma.enquiry.count({
+          where: {
+            ...userFilter,
+            status: EnquiryStatus.INTERESTED,
+          },
+        }),
+
+        // Recent call logs (last 7 days)
+        prisma.callLog.count({
+          where: {
+            enquiry: userFilter,
+            createdAt: { gte: sevenDaysAgo },
+          },
+        }),
+
+        // Enrollments (last 7 days)
+        prisma.enquiry.count({
+          where: {
+            ...userFilter,
+            status: EnquiryStatus.ENROLLED,
+            updatedAt: { gte: sevenDaysAgo },
+          },
+        }),
+      ]);
+
+      // Calculate performance metrics
+      const interestRate = totalEnquiries > 0 ? (interestedLeads / totalEnquiries) * 100 : 0;
+      const conversionRate = totalEnquiries > 0 ? (enrolledEnquiries / totalEnquiries) * 100 : 0;
+
+      return {
+        stats: {
+          totalEnquiries,
+          newEnquiries: newEnquiriesCount,
+          pendingFollowUps: overdueFollowUps + todayFollowUps,
+          totalCalls,
         },
-      },
-    }),
-
-    // Interested leads
-    prisma.enquiry.count({
-      where: {
-        ...userFilter,
-        status: EnquiryStatus.INTERESTED,
-      },
-    }),
-
-    // Recent call logs (last 7 days)
-    prisma.callLog.count({
-      where: {
-        enquiry: userFilter,
-        createdAt: { gte: sevenDaysAgo },
-      },
-    }),
-
-    // Enrollments (last 7 days)
-    prisma.enquiry.count({
-      where: {
-        ...userFilter,
-        status: EnquiryStatus.ENROLLED,
-        updatedAt: { gte: sevenDaysAgo },
-      },
-    }),
-  ]);
-
-  // Calculate performance metrics
-  const interestRate = totalEnquiries > 0 ? (interestedLeads / totalEnquiries) * 100 : 0;
-  const conversionRate = totalEnquiries > 0 ? (enrolledEnquiries / totalEnquiries) * 100 : 0;
-
+        followUpStats: {
+          overdueCount: overdueFollowUps,
+          todayCount: todayFollowUps,
+          interestedLeadsCount: interestedLeads,
+        },
+        recentActivity: {
+          newEnquiries: {
+            count: newEnquiriesCount,
+            description: `${newEnquiriesCount} new leads`,
+          },
+          callsMade: {
+            count: recentCallLogs,
+            description: `${recentCallLogs} calls completed`,
+          },
+          enrollments: {
+            count: enrolledEnquiries,
+            description: `${enrolledEnquiries} successful conversions`,
+          },
+        },
+        performanceMetrics: {
+          totalEnquiries,
+          interestRate: Math.round(interestRate),
+          conversionRate: Math.round(conversionRate),
+          totalCalls,
+        },
+      };
+    });
+  } catch (error) {
+    console.error('Failed to fetch dashboard data:', error);
     return {
       stats: {
-        totalEnquiries,
-        newEnquiries: newEnquiriesCount,
-        pendingFollowUps: overdueFollowUps + todayFollowUps,
-        totalCalls,
+        totalEnquiries: 0,
+        newEnquiries: 0,
+        pendingFollowUps: 0,
+        totalCalls: 0,
       },
       followUpStats: {
-        overdueCount: overdueFollowUps,
-        todayCount: todayFollowUps,
-        interestedLeadsCount: interestedLeads,
+        overdueCount: 0,
+        todayCount: 0,
+        interestedLeadsCount: 0,
       },
       recentActivity: {
-        newEnquiries: {
-          count: newEnquiriesCount,
-          description: `${newEnquiriesCount} new leads`,
-        },
-        callsMade: {
-          count: recentCallLogs,
-          description: `${recentCallLogs} calls completed`,
-        },
-        enrollments: {
-          count: enrolledEnquiries,
-          description: `${enrolledEnquiries} successful conversions`,
-        },
+        newEnquiries: { count: 0, description: '0 new leads' },
+        callsMade: { count: 0, description: '0 calls completed' },
+        enrollments: { count: 0, description: '0 successful conversions' },
       },
       performanceMetrics: {
-        totalEnquiries,
-        interestRate: Math.round(interestRate),
-        conversionRate: Math.round(conversionRate),
-        totalCalls,
+        totalEnquiries: 0,
+        interestRate: 0,
+        conversionRate: 0,
+        totalCalls: 0,
       },
     };
-  });
+  }
 }

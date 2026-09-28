@@ -236,17 +236,35 @@ export const logoutAction = actionClient.action(async () => {
   redirect('/login');
 });
 
-export const getAllUsers = async () =>
-  await prisma.user.findMany({
-    orderBy: { createdAt: 'desc' },
-  });
+export const getAllUsers = async () => {
+  try {
+    return await prisma.user.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+  } catch (error) {
+    console.error('Failed to fetch users:', error);
+    return [];
+  }
+};
 
-export const getAllRoles = async () =>
-  await prisma.role.findMany({
-    orderBy: { name: 'asc' },
-  });
+export const getAllRoles = async () => {
+  try {
+    return await prisma.role.findMany({
+      orderBy: { name: 'asc' },
+    });
+  } catch (error) {
+    console.error('Failed to fetch roles:', error);
+    return [];
+  }
+};
 
-export const getAllBranches = async () =>
-  await prisma.branch.findMany({
-    orderBy: { createdAt: 'desc' },
-  });
+export const getAllBranches = async () => {
+  try {
+    return await prisma.branch.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+  } catch (error) {
+    console.error('Failed to fetch branches:', error);
+    return [];
+  }
+};
