@@ -4,6 +4,8 @@ import { UsersTable } from '@/components/users-table';
 import { AddUserDialog } from '@/components/add-user-dialog';
 import { PageContainer, PageHeader } from '@/components/ui/page-header';
 
+export const dynamic = 'force-dynamic';
+
 export default async function UsersPage() {
   const [users, roles, branches] = await Promise.all([
     getAllUsers(),

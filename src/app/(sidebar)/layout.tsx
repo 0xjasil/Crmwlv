@@ -12,6 +12,8 @@ import jwt from 'jsonwebtoken';
 
 import { cacheService } from '@/lib/cache/cache-service';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   description: APP_CONFIG.description,
 };
