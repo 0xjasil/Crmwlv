@@ -129,12 +129,24 @@ export async function getReportsData(userId?: string): Promise<ReportsData> {
       },
     });
 
+    const STATUS_COLORS: Record<string, string> = {
+      NEW: '#3b82f6',
+      CONTACTED: '#8b5cf6',
+      INTERESTED: '#10b981',
+      NOT_INTERESTED: '#ef4444',
+      FOLLOW_UP: '#f59e0b',
+      ENROLLED: '#06b6d4',
+      DROPPED: '#6b7280',
+      INVALID: '#9ca3af',
+    };
+
     const statusDistribution: EnquiryStatusDistribution[] = statusCounts.map((item) => {
       const percentage = totalEnquiries > 0 ? Math.round((item._count.id / totalEnquiries) * 100) : 0;
       return {
         status: item.status,
         count: item._count.id,
         percentage,
+        color: STATUS_COLORS[item.status] || '#6b7280',
       };
     });
 
