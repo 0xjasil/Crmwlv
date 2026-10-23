@@ -28,6 +28,7 @@ import {
 import { getInvoiceRecord, createInvoiceShare, revokeInvoiceShare, fetchInvoicePdf, sendInvoiceEmail } from '@/lib/api/invoice-api';
 import { toast } from 'sonner';
 import { InvoiceWithItems, InvoiceStatus } from '@/types/invoice';
+import { formatCurrency } from '@/lib/utils';
 import { InvoiceItemsSection } from '@/components/invoice/invoice-items-section';
 import { InvoiceTotals } from '@/components/invoice/invoice-totals';
 import { InvoiceStatusUpdate } from '@/components/invoice/invoice-status-update';

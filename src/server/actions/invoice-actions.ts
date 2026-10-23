@@ -160,7 +160,6 @@ export const createInvoice = action.schema(createInvoiceSchema).action(async ({ 
         dueDate: parsedInput.dueDate,
         notes: parsedInput.notes,
         taxRate: parsedInput.taxRate,
-        taxRounding: parsedInput.taxRounding || 'exact',
         serviceCharge: parsedInput.serviceCharge || 0,
         otherCharges: parsedInput.otherCharges || 0,
         subtotal: 0,
@@ -215,9 +214,8 @@ export const updateInvoice = action.schema(updateInvoiceSchema).action(async ({ 
     if (updateData.status) data.status = updateData.status;
 
     // If tax rate, service charge, or other charges are updated, recalculate totals
-    if (updateData.taxRate !== undefined || updateData.serviceCharge !== undefined || updateData.otherCharges !== undefined || updateData.taxRounding !== undefined) {
+    if (updateData.taxRate !== undefined || updateData.serviceCharge !== undefined || updateData.otherCharges !== undefined) {
       data.taxRate = updateData.taxRate ?? existingInvoice.taxRate;
-      data.taxRounding = updateData.taxRounding ?? existingInvoice.taxRounding;
       data.serviceCharge = updateData.serviceCharge ?? existingInvoice.serviceCharge;
       data.otherCharges = updateData.otherCharges ?? existingInvoice.otherCharges;
       const totals = calculateTotals(
@@ -225,7 +223,7 @@ export const updateInvoice = action.schema(updateInvoiceSchema).action(async ({ 
         data.taxRate as number,
         data.serviceCharge as number,
         data.otherCharges as number,
-        data.taxRounding as string
+        'exact'
       );
       data.subtotal = totals.subtotal;
       data.taxAmount = totals.taxAmount;
@@ -339,7 +337,7 @@ export const getInvoices = action.schema(getInvoicesSchema).action(async ({ pars
     }
 
     if (parsedInput.status) {
-      where.status = parsedInput.status;
+      where.status = parsedInput.status as any;
     }
 
     if (parsedInput.dateFrom || parsedInput.dateTo) {
@@ -545,7 +543,7 @@ async function recalculateInvoiceTotals(invoiceId: string) {
     invoice.taxRate,
     invoice.serviceCharge,
     invoice.otherCharges,
-    invoice.taxRounding
+    'exact'
   );
 
   await prisma.invoice.update({
