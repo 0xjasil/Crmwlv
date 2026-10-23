@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/select';
 import { CheckCircle, Clock, AlertCircle, XCircle, Circle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
-import { updateInvoice } from '@/server/actions/invoice-actions';
+import { updateInvoiceRecord } from '@/lib/api/invoice-api';
 import { InvoiceStatus } from '@/types/invoice';
 
 interface InvoiceStatusUpdateProps {
@@ -30,6 +30,11 @@ const statusConfig = {
     color: 'bg-blue-100 text-blue-800 border-blue-200',
     icon: Clock,
     label: 'Sent',
+  },
+  [InvoiceStatus.PARTIALLY_PAID]: {
+    color: 'bg-amber-100 text-amber-800 border-amber-200',
+    icon: Clock,
+    label: 'Partially paid',
   },
   [InvoiceStatus.PAID]: {
     color: 'bg-emerald-100 text-emerald-800 border-emerald-200',
@@ -66,17 +71,9 @@ export function InvoiceStatusUpdate({
       setIsUpdating(true);
       toast.info('Updating invoice status...');
 
-      const result = await updateInvoice({
-        id: invoiceId,
-        status: selectedStatus,
-      });
-
-      if (result.data?.success) {
-        toast.success(`Invoice status updated to ${statusConfig[selectedStatus].label}`);
-        onStatusUpdate?.();
-      } else {
-        throw new Error(result.data?.message || 'Failed to update status');
-      }
+      await updateInvoiceRecord(invoiceId, { status: selectedStatus });
+      toast.success(`Invoice status updated to ${statusConfig[selectedStatus].label}`);
+      onStatusUpdate?.();
     } catch (error) {
       console.error('Error updating invoice status:', error);
       toast.error(
@@ -108,7 +105,7 @@ export function InvoiceStatusUpdate({
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
-          {Object.entries(statusConfig).map(([status, config]) => {
+          {Object.entries(statusConfig).filter(([status]) => [InvoiceStatus.DRAFT, InvoiceStatus.SENT, InvoiceStatus.OVERDUE, InvoiceStatus.CANCELLED].includes(status as InvoiceStatus) || status === currentStatus).map(([status, config]) => {
             const StatusIcon = config.icon;
             return (
               <SelectItem key={status} value={status}>

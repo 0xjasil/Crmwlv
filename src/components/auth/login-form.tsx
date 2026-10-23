@@ -71,8 +71,7 @@ export function LoginForm() {
         document.cookie = `user=${encodeURIComponent(JSON.stringify(user))}; path=/; max-age=604800; SameSite=Lax`;
       }
 
-      router.push('/dashboard');
-      router.refresh();
+      window.location.href = '/dashboard';
     } catch (err: any) {
       setErrorMessage(err.message || 'An unexpected error occurred connecting to backend');
       setIsLoading(false);

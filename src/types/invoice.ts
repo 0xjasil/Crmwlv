@@ -2,6 +2,7 @@
 export enum InvoiceStatus {
   DRAFT = 'DRAFT',
   SENT = 'SENT',
+  PARTIALLY_PAID = 'PARTIALLY_PAID',
   PAID = 'PAID',
   OVERDUE = 'OVERDUE',
   CANCELLED = 'CANCELLED',
@@ -16,10 +17,13 @@ export interface Invoice {
   dueDate: Date | null;
   subtotal: number;
   taxRate: number;
+  taxRounding: string;
   taxAmount: number;
   serviceCharge: number;
   otherCharges: number;
   totalAmount: number;
+  amountPaid?: number;
+  balanceDue?: number;
   status: InvoiceStatus;
   notes: string | null;
   createdByUserId: string;
@@ -46,6 +50,12 @@ export interface InvoiceWithItems extends Invoice {
     name: string;
     email: string;
   };
+  customer?: { id: string; name: string; email?: string | null; phone?: string | null; address?: string | null; state?: string | null; gstin?: string | null } | null;
+  payments?: Array<{ id: string; paymentNumber: string; paymentDate: Date | string; amount: number; paymentMode: string; depositTo?: string | null; referenceNumber?: string | null; notes?: string | null }>;
+  activities?: Array<{ id: string; type: string; message: string; createdAt: Date | string; user: { id: string; name: string } }>;
+  shareToken?: string | null;
+  remindersEnabled?: boolean;
+  reminderRules?: string[];
 }
 
 export interface InvoiceWithRelations extends Invoice {
@@ -64,6 +74,7 @@ export interface CreateInvoiceInput {
   dueDate?: Date | null;
   notes?: string | null;
   taxRate?: number;
+  taxRounding?: string;
 }
 
 export interface UpdateInvoiceInput {

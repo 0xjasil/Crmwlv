@@ -21,7 +21,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Search, Eye, Edit, Trash2, MoreVertical, FileText, RotateCw, Receipt } from 'lucide-react';
-import { getInvoices } from '@/server/actions/invoice-actions';
+import { fetchInvoicesPage } from '@/lib/api/invoice-api';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { InvoiceWithItems } from '@/types/invoice';
@@ -76,19 +76,19 @@ export default function InvoicesPage() {
   const fetchInvoicesData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const result = await getInvoices({
+      const result = await fetchInvoicesPage({
         page: currentPage,
         limit: pageSize,
         search: debouncedSearch.trim() || undefined,
       });
 
-      if (result.data?.success) {
-        setInvoices((result.data.data || []) as InvoiceWithItems[]);
-        const paginationData = result.data.pagination || {
+      if (result.success) {
+        setInvoices((result.data || []) as unknown as InvoiceWithItems[]);
+        const paginationData = result.pagination || {
           page: currentPage,
           limit: pageSize,
-          total: result.data.total || 0,
-          totalPages: Math.ceil((result.data.total || 0) / pageSize),
+          total: result.data?.length || 0,
+          totalPages: Math.ceil((result.data?.length || 0) / pageSize),
         };
         setPagination({
           page: paginationData.page,
@@ -97,7 +97,7 @@ export default function InvoicesPage() {
           pages: paginationData.totalPages,
         });
       } else {
-        toast.error(result.data?.message || 'Failed to fetch invoices');
+        toast.error(result.error?.message || result.message || 'Failed to fetch invoices');
       }
     } catch (error) {
       console.error('Error fetching invoices:', error);
@@ -176,7 +176,9 @@ export default function InvoicesPage() {
               <RotateCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
-            <InvoiceFormDialog onSuccess={refreshInvoices} />
+            <Button onClick={() => router.push('/invoices/new')} variant="default" size="sm" className="h-9 gap-1.5 text-xs font-medium">
+              + New
+            </Button>
           </div>
         }
       />
@@ -223,7 +225,11 @@ export default function InvoicesPage() {
               icon={Receipt}
               title="No invoices found"
               description="Generate a billing invoice or clear your active search."
-              action={<InvoiceFormDialog onSuccess={refreshInvoices} />}
+              action={
+                <Button onClick={() => router.push('/invoices/new')}>
+                  + New Invoice
+                </Button>
+              }
             />
           ) : (
             <div className="relative overflow-x-auto">
@@ -266,7 +272,10 @@ export default function InvoicesPage() {
                         <StatusBadge status={invoice.status} />
                       </TableCell>
                       <TableCell className="text-right font-mono text-xs font-semibold text-foreground">
-                        {formatCurrency(invoice.totalAmount)}
+                        <div>{formatCurrency(invoice.totalAmount)}</div>
+                        {Number(invoice.amountPaid ?? 0) > 0 && Number(invoice.balanceDue ?? 0) > 0 && (
+                          <div className="mt-1 font-sans text-[11px] font-normal text-muted-foreground">Balance {formatCurrency(Number(invoice.balanceDue))}</div>
+                        )}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {invoice.createdBy.name}

@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -24,7 +25,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { CalendarIcon, Plus } from 'lucide-react';
+import { CalendarIcon, Plus, Settings2 } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -32,6 +33,9 @@ import { format } from 'date-fns';
 import { createInvoice, updateInvoice } from '@/server/actions/invoice-actions';
 import { InvoiceWithItems } from '@/types/invoice';
 import { toast } from 'sonner';
+import { updateInvoiceRecord, getPaymentNumberPreview } from '@/lib/api/invoice-api';
+import { Checkbox } from '@/components/ui/checkbox';
+import { PaymentNumberSettingsDialog } from '@/components/invoice/invoice-payments';
 
 // Form schema
 const invoiceFormSchema = z.object({
@@ -42,6 +46,7 @@ const invoiceFormSchema = z.object({
   dueDate: z.date().optional(),
   notes: z.string().optional(),
   taxRate: z.number().min(0).max(1),
+  taxRounding: z.string().optional(),
   serviceCharge: z.number().min(0).optional(),
   otherCharges: z.number().min(0).optional(),
 });
@@ -66,6 +71,15 @@ export function InvoiceFormDialog({
   const router = useRouter();
   const [internalOpen, setInternalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [receivedPayment, setReceivedPayment] = useState(false);
+  const [receivedAmount, setReceivedAmount] = useState('');
+  const [receivedMode, setReceivedMode] = useState('UPI');
+  const [receivedDate, setReceivedDate] = useState(new Date().toISOString().slice(0, 10));
+  const [receivedDepositTo, setReceivedDepositTo] = useState('');
+  const [receivedReference, setReceivedReference] = useState('');
+  const [paymentNumber, setPaymentNumber] = useState('');
+  const [paymentAutoGenerate, setPaymentAutoGenerate] = useState(true);
+  const [paymentSettingsOpen, setPaymentSettingsOpen] = useState(false);
 
   // Use controlled or internal state
   const isControlled = controlledOpen !== undefined;
@@ -80,6 +94,7 @@ export function InvoiceFormDialog({
       dueDate: invoice?.dueDate ? new Date(invoice.dueDate) : undefined,
       notes: invoice?.notes || '',
       taxRate: invoice?.taxRate || 0.18, // Default 18% GST
+      taxRounding: invoice?.taxRounding || 'exact',
       serviceCharge: invoice?.serviceCharge || 0,
       otherCharges: invoice?.otherCharges || 0,
     },
@@ -90,10 +105,9 @@ export function InvoiceFormDialog({
     try {
       let result;
       if (mode === 'edit' && invoice) {
-        result = await updateInvoice({
-          id: invoice.id,
-          ...data,
-        });
+        const updateData = { ...data, ...(receivedPayment ? { initialPayment: { amount: Number(receivedAmount), ...(!paymentAutoGenerate ? { paymentNumber } : {}), paymentDate: new Date(`${receivedDate}T00:00:00`).toISOString(), paymentMode: receivedMode, depositTo: receivedDepositTo, referenceNumber: receivedReference } } : {}) };
+        await updateInvoiceRecord(invoice.id, updateData as unknown as Record<string, unknown>);
+        result = { data: { success: true } };
       } else {
         result = await createInvoice(data);
       }
@@ -132,6 +146,7 @@ export function InvoiceFormDialog({
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={handleOpenChange}>
       {mode === 'create' && (
         <DialogTrigger asChild>
@@ -285,6 +300,29 @@ export function InvoiceFormDialog({
               )}
             />
 
+            {/* Tax Rounding */}
+            <FormField
+              control={form.control}
+              name="taxRounding"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tax Rounding</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select rounding" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="exact">Exact</SelectItem>
+                      <SelectItem value="round_off">Round off</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             {/* Service Charge */}
             <FormField
               control={form.control}
@@ -348,6 +386,13 @@ export function InvoiceFormDialog({
               )}
             />
 
+            {mode === 'edit' && !(invoice?.payments?.length) && (
+              <div className="space-y-4 rounded-lg border p-4">
+                <label className="flex items-center gap-2 text-sm font-medium"><Checkbox checked={receivedPayment} onCheckedChange={(checked) => { setReceivedPayment(checked === true); if (checked === true) { setReceivedAmount(String(invoice?.balanceDue ?? invoice?.totalAmount ?? 0)); void getPaymentNumberPreview().then((preview) => { setPaymentNumber(preview.paymentNumber); setPaymentAutoGenerate(preview.settings.autoGenerate); }).catch((error) => toast.error(error instanceof Error ? error.message : 'Could not load payment preferences.')); } }} />I have received the payment</label>
+                {receivedPayment && <div className="grid gap-4 sm:grid-cols-2"><label className="grid gap-1.5 text-sm font-medium">Amount Received<Input type="number" min="0.01" max={invoice?.balanceDue ?? invoice?.totalAmount} step="0.01" required value={receivedAmount} onChange={(event) => setReceivedAmount(event.target.value)} /></label><label className="grid gap-1.5 text-sm font-medium">Payment Mode<select value={receivedMode} onChange={(event) => setReceivedMode(event.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm">{['UPI','Bank Transfer','Cash','Cheque','Card','Other'].map((value) => <option key={value}>{value}</option>)}</select></label><label className="grid gap-1.5 text-sm font-medium">Payment Date<Input type="date" value={receivedDate} onChange={(event) => setReceivedDate(event.target.value)} /></label><label className="grid gap-1.5 text-sm font-medium">Deposit To<Input value={receivedDepositTo} onChange={(event) => setReceivedDepositTo(event.target.value)} /></label><label className="grid gap-1.5 text-sm font-medium">Reference #<Input value={receivedReference} onChange={(event) => setReceivedReference(event.target.value)} /></label>{!paymentAutoGenerate && <label className="grid gap-1.5 text-sm font-medium">Payment #<div className="flex gap-2"><Input required value={paymentNumber} onChange={(event) => setPaymentNumber(event.target.value)} /><Button type="button" variant="outline" size="icon" onClick={() => setPaymentSettingsOpen(true)}><Settings2 className="size-4" /></Button></div></label>}</div>}
+              </div>
+            )}
+
             {/* Form Actions */}
             <div className="flex justify-end space-x-4 pt-4">
               <Button
@@ -368,5 +413,7 @@ export function InvoiceFormDialog({
         </Form>
       </DialogContent>
     </Dialog>
+    <PaymentNumberSettingsDialog open={paymentSettingsOpen} onOpenChange={setPaymentSettingsOpen} onSaved={(settings) => { setPaymentAutoGenerate(settings.autoGenerate); void getPaymentNumberPreview().then((preview) => setPaymentNumber(preview.paymentNumber)); }} />
+    </>
   );
 }

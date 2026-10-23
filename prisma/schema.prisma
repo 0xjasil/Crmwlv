@@ -259,6 +259,7 @@ model Invoice {
   dueDate         DateTime?
   subtotal        Float         @default(0)
   taxRate         Float         @default(0.18)
+  taxRounding     String        @default("exact")
   taxAmount       Float         @default(0)
   serviceCharge   Float         @default(0)
   otherCharges    Float         @default(0)

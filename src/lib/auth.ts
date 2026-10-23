@@ -22,12 +22,16 @@ export const auth = {
         const userCookie = cookieStore.get('user')?.value;
 
         let userId: string | null = null;
+        let userEmail: string | null = null;
 
         if (token) {
           try {
             const decoded = jwt.decode(token) as { id: string; email: string; role: string } | null;
             if (decoded?.id) {
               userId = decoded.id;
+            }
+            if (decoded?.email) {
+              userEmail = decoded.email;
             }
           } catch (e) {}
         }
@@ -38,16 +42,27 @@ export const auth = {
             if (parsed?.id) {
               userId = parsed.id;
             }
+            if (parsed?.email) {
+              userEmail = parsed.email;
+            }
           } catch (e) {}
         }
 
-        if (!userId) {
+        if (!userId && !userEmail) {
           return null;
         }
 
-        const user = await prisma.user.findUnique({
-          where: { id: userId },
-        });
+        let user = userId
+          ? await prisma.user.findUnique({
+              where: { id: userId },
+            })
+          : null;
+
+        if (!user && userEmail) {
+          user = await prisma.user.findUnique({
+            where: { email: userEmail },
+          });
+        }
 
         if (!user) {
           return null;

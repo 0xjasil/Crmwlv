@@ -20,13 +20,22 @@ import {
   Circle,
   Eye,
   IndianRupee,
+  Pencil,
+  Send,
+  Share2,
+  Bell,
 } from 'lucide-react';
-import { getInvoiceById } from '@/server/actions/invoice-actions';
+import { getInvoiceRecord, createInvoiceShare, revokeInvoiceShare, fetchInvoicePdf, sendInvoiceEmail } from '@/lib/api/invoice-api';
 import { toast } from 'sonner';
 import { InvoiceWithItems, InvoiceStatus } from '@/types/invoice';
 import { InvoiceItemsSection } from '@/components/invoice/invoice-items-section';
 import { InvoiceTotals } from '@/components/invoice/invoice-totals';
 import { InvoiceStatusUpdate } from '@/components/invoice/invoice-status-update';
+import { InvoiceFormDialog } from '@/components/invoice/invoice-form-dialog';
+import { InvoicePaymentHistory } from '@/components/invoice/invoice-payment-history';
+import { RecordPaymentDialog, RemindersDialog } from '@/components/invoice/invoice-payments';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export default function InvoiceDetailPage() {
   const params = useParams();
@@ -36,6 +45,12 @@ export default function InvoiceDetailPage() {
   const [invoice, setInvoice] = useState<InvoiceWithItems | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [remindersOpen, setRemindersOpen] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
+  const [sendEmail, setSendEmail] = useState('');
+  const [isSending, setIsSending] = useState(false);
 
   // Fetch invoice data
   const fetchInvoice = useCallback(async () => {
@@ -43,14 +58,8 @@ export default function InvoiceDetailPage() {
 
     setIsLoading(true);
     try {
-      const result = await getInvoiceById({ id: invoiceId });
-
-      if (result.data?.success) {
-        setInvoice(result.data.data as InvoiceWithItems);
-      } else {
-        toast.error(result.data?.message || 'Failed to fetch invoice');
-        router.push('/invoices');
-      }
+      const result = await getInvoiceRecord(invoiceId);
+      setInvoice(result as unknown as InvoiceWithItems);
     } catch (error) {
       console.error('Error fetching invoice:', error);
       toast.error('Failed to fetch invoice');
@@ -73,12 +82,18 @@ export default function InvoiceDetailPage() {
       setIsGeneratingPDF(true);
       toast.info('Opening PDF preview...');
 
-      // Open PDF in new tab for preview
-      let previewUrl = `/api/invoices/${invoiceId}/pdf`;
-      if (!download) previewUrl += '?preview=true';
-      window.open(previewUrl, '_blank');
-
-      toast.success('PDF preview opened in new tab!');
+      const pdf = await fetchInvoicePdf(invoiceId);
+      const url = URL.createObjectURL(pdf);
+      if (download) {
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `Invoice-${invoice?.invoiceNumber || invoiceId}.pdf`;
+        anchor.click();
+      } else {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      toast.success(download ? 'Invoice PDF downloaded.' : 'Invoice PDF opened. Use the PDF viewer to print.');
     } catch (error) {
       console.error('Error opening PDF preview:', error);
       toast.error(
@@ -87,6 +102,41 @@ export default function InvoiceDetailPage() {
     } finally {
       setIsGeneratingPDF(false);
     }
+  };
+
+  const handleShare = async () => {
+    try {
+      let token = invoice?.shareToken;
+      if (!token) {
+        const result = await createInvoiceShare(invoiceId);
+        token = result.shareToken;
+        setInvoice((current) => current ? { ...current, shareToken: token } : current);
+        toast.success('Public invoice link created.');
+      }
+      const url = `${window.location.origin}/public/invoices/${token}`;
+      await navigator.clipboard.writeText(url);
+      toast.success('Share link copied.');
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not create share link.'); }
+  };
+
+  const handleRevokeShare = async () => {
+    try {
+      await revokeInvoiceShare(invoiceId);
+      setInvoice((current) => current ? { ...current, shareToken: null } : current);
+      toast.success('Public invoice link revoked.');
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not revoke share link.'); }
+  };
+
+  const handleSendInvoice = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setIsSending(true);
+    try {
+      await sendInvoiceEmail(invoiceId, sendEmail.trim() || undefined);
+      toast.success('Invoice emailed with the PDF attached.');
+      setSendOpen(false);
+      await fetchInvoice();
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not send invoice.'); }
+    finally { setIsSending(false); }
   };
 
   const getStatusConfig = (status: InvoiceStatus) => {
@@ -103,6 +153,8 @@ export default function InvoiceDetailPage() {
           icon: Clock,
           label: 'Sent',
         };
+      case InvoiceStatus.PARTIALLY_PAID:
+        return { color: 'bg-amber-100 text-amber-800 border-amber-200', icon: Clock, label: 'Partially Paid' };
       case InvoiceStatus.PAID:
         return {
           color: 'bg-emerald-100 text-emerald-800 border-emerald-200',
@@ -131,11 +183,7 @@ export default function InvoiceDetailPage() {
   };
 
   const formatDate = (date: string | Date) => {
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    return new Date(date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
   // Loading skeleton
@@ -246,6 +294,12 @@ export default function InvoiceDetailPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={() => setEditOpen(true)}><Pencil className="mr-2 h-4 w-4" />Edit</Button>
+          <Button variant="outline" onClick={() => { setSendEmail(invoice.customer?.email || ''); setSendOpen(true); }}><Send className="mr-2 h-4 w-4" />Send</Button>
+          <Button variant="outline" onClick={() => void handleShare()}><Share2 className="mr-2 h-4 w-4" />{invoice.shareToken ? 'Copy Share Link' : 'Share'}</Button>
+          {invoice.shareToken && <Button variant="ghost" onClick={() => void handleRevokeShare()}>Revoke</Button>}
+          <Button variant="outline" onClick={() => setRemindersOpen(true)}><Bell className="mr-2 h-4 w-4" />Reminders</Button>
+          {Number(invoice.balanceDue ?? invoice.totalAmount - (invoice.amountPaid ?? 0)) > 0 && ![InvoiceStatus.DRAFT, InvoiceStatus.CANCELLED].includes(invoice.status) && <Button onClick={() => setPaymentOpen(true)}> <IndianRupee className="mr-2 h-4 w-4" />Record Payment</Button>}
           <Button
             variant="outline"
             onClick={() => handleGeneratePDF()}
@@ -266,6 +320,13 @@ export default function InvoiceDetailPage() {
           </Button>
         </div>
       </div>
+
+      {Number(invoice.amountPaid ?? 0) > 0 && Number(invoice.balanceDue ?? 0) > 0 && (
+        <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-100">
+          <span>Invoice has been partially paid. Balance due: {formatCurrency(Number(invoice.balanceDue))}.</span>
+          <Button size="sm" variant="outline" onClick={() => setPaymentOpen(true)}>Record payment</Button>
+        </div>
+      )}
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -364,6 +425,7 @@ export default function InvoiceDetailPage() {
             items={invoice.items}
             onItemsChange={fetchInvoice}
           />
+          <InvoicePaymentHistory invoice={invoice} onChange={fetchInvoice} />
         </div>
 
         {/* Right Column - Summary and Actions */}
@@ -418,10 +480,18 @@ export default function InvoiceDetailPage() {
               serviceCharge={invoice.serviceCharge}
               otherCharges={invoice.otherCharges}
               totalAmount={invoice.totalAmount}
+              amountPaid={invoice.amountPaid ?? 0}
+              balanceDue={invoice.balanceDue ?? invoice.totalAmount - (invoice.amountPaid ?? 0)}
             />
           </div>
         </div>
       </div>
+      <InvoiceFormDialog mode="edit" invoice={invoice} open={editOpen} onOpenChange={setEditOpen} onSuccess={fetchInvoice} />
+      <RecordPaymentDialog open={paymentOpen} onOpenChange={setPaymentOpen} invoiceId={invoice.id} customerName={invoice.customer?.name || invoice.billedTo.split('\n')[0]} balanceDue={Number(invoice.balanceDue ?? invoice.totalAmount - (invoice.amountPaid ?? 0))} onSuccess={fetchInvoice} />
+      <RemindersDialog open={remindersOpen} onOpenChange={setRemindersOpen} invoiceId={invoice.id} remindersEnabled={invoice.remindersEnabled ?? false} reminderRules={invoice.reminderRules ?? []} email={invoice.customer?.email} onSuccess={fetchInvoice} />
+      <Dialog open={sendOpen} onOpenChange={(open) => { if (!isSending) setSendOpen(open); }}>
+        <DialogContent><DialogHeader><DialogTitle>Send Invoice</DialogTitle><DialogDescription>Send the invoice PDF to your customer by email.</DialogDescription></DialogHeader><form onSubmit={(event) => void handleSendInvoice(event)} className="space-y-4"><label className="grid gap-2 text-sm font-medium">To<Input type="email" required value={sendEmail} onChange={(event) => setSendEmail(event.target.value)} placeholder="customer@example.com" /></label><DialogFooter><Button type="button" variant="outline" onClick={() => setSendOpen(false)} disabled={isSending}>Cancel</Button><Button type="submit" disabled={isSending}>{isSending ? 'Sending…' : 'Send with PDF'}</Button></DialogFooter></form></DialogContent>
+      </Dialog>
     </div>
   );
 }

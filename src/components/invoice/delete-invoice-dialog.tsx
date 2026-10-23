@@ -11,7 +11,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { deleteInvoice } from '@/server/actions/invoice-actions';
+import { deleteInvoiceRecord } from '@/lib/api/invoice-api';
 import { toast } from 'sonner';
 
 interface DeleteInvoiceDialogProps {
@@ -35,15 +35,10 @@ export function DeleteInvoiceDialog({
     setIsDeleting(true);
 
     try {
-      const result = await deleteInvoice({ id: invoiceId });
-
-      if (result.data?.success) {
-        toast.success('Invoice deleted successfully');
-        onSuccess?.();
-        onOpenChange?.(false);
-      } else {
-        toast.error(result.data?.message || 'Failed to delete invoice');
-      }
+      await deleteInvoiceRecord(invoiceId);
+      toast.success('Invoice deleted successfully');
+      onSuccess?.();
+      onOpenChange?.(false);
     } catch (error) {
       console.error('Error deleting invoice:', error);
       toast.error('Failed to delete invoice');

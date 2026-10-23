@@ -13,9 +13,11 @@ interface InvoiceTotalsProps {
   serviceCharge: number;
   otherCharges: number;
   totalAmount: number;
+  amountPaid?: number;
+  balanceDue?: number;
 }
 
-export function InvoiceTotals({ subtotal, taxRate, taxAmount, serviceCharge, otherCharges, totalAmount }: InvoiceTotalsProps) {
+export function InvoiceTotals({ subtotal, taxRate, taxAmount, serviceCharge, otherCharges, totalAmount, amountPaid = 0, balanceDue = totalAmount }: InvoiceTotalsProps) {
   return (
     <Card className="w-full overflow-hidden shadow-sm py-0">
       <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b py-6">
@@ -33,6 +35,11 @@ export function InvoiceTotals({ subtotal, taxRate, taxAmount, serviceCharge, oth
             <span className="text-sm font-medium">Subtotal</span>
           </div>
           <span className="font-semibold text-foreground">{formatCurrency(subtotal)}</span>
+        </div>
+
+        <div className="space-y-2 border-t pt-4 text-sm">
+          <div className="flex justify-between"><span className="text-muted-foreground">Payment Made</span><span>{formatCurrency(amountPaid)}</span></div>
+          <div className="flex justify-between font-semibold"><span>Balance Due</span><span>{formatCurrency(balanceDue)}</span></div>
         </div>
 
         {/* Service Charge */}

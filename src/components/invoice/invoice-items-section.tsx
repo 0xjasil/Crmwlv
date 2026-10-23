@@ -14,11 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Plus, Trash2, Save, X } from 'lucide-react';
-import {
-  addInvoiceItem,
-  updateInvoiceItem,
-  deleteInvoiceItem,
-} from '@/server/actions/invoice-actions';
+import { addInvoiceItemRecord, updateInvoiceItemRecord, deleteInvoiceItemRecord } from '@/lib/api/invoice-api';
 import { toast } from 'sonner';
 import { InvoiceItem } from '@/types/invoice';
 import { formatCurrency } from '@/lib/utils';
@@ -58,21 +54,16 @@ export function InvoiceItemsSection({ invoiceId, items, onItemsChange }: Invoice
 
     setIsSubmitting(true);
     try {
-      const result = await addInvoiceItem({
-        invoiceId,
+      await addInvoiceItemRecord(invoiceId, {
         itemDescription: newItem.itemDescription,
         quantity: newItem.quantity,
         unitPrice: newItem.unitPrice,
       });
 
-      if (result.data?.success) {
-        toast.success('Item added successfully');
-        setNewItem({ itemDescription: '', quantity: 1, unitPrice: 0 });
-        setShowAddForm(false);
-        onItemsChange();
-      } else {
-        toast.error(result.data?.message || 'Failed to add item');
-      }
+      toast.success('Item added successfully');
+      setNewItem({ itemDescription: '', quantity: 1, unitPrice: 0 });
+      setShowAddForm(false);
+      onItemsChange();
     } catch (error) {
       console.error('Error adding item:', error);
       toast.error('Failed to add item');
@@ -111,20 +102,15 @@ export function InvoiceItemsSection({ invoiceId, items, onItemsChange }: Invoice
 
     setIsSubmitting(true);
     try {
-      const result = await updateInvoiceItem({
-        id: itemId,
+      await updateInvoiceItemRecord(itemId, {
         itemDescription: editingItem.itemDescription,
         quantity: editingItem.quantity,
         unitPrice: editingItem.unitPrice,
       });
 
-      if (result.data?.success) {
-        toast.success('Item updated successfully');
-        handleCancelEdit(itemId);
-        onItemsChange();
-      } else {
-        toast.error(result.data?.message || 'Failed to update item');
-      }
+      toast.success('Item updated successfully');
+      handleCancelEdit(itemId);
+      onItemsChange();
     } catch (error) {
       console.error('Error updating item:', error);
       toast.error('Failed to update item');
@@ -136,14 +122,9 @@ export function InvoiceItemsSection({ invoiceId, items, onItemsChange }: Invoice
   const handleDeleteItem = async (itemId: string) => {
     setIsSubmitting(true);
     try {
-      const result = await deleteInvoiceItem({ id: itemId });
-
-      if (result.data?.success) {
-        toast.success('Item deleted successfully');
-        onItemsChange();
-      } else {
-        toast.error(result.data?.message || 'Failed to delete item');
-      }
+      await deleteInvoiceItemRecord(itemId);
+      toast.success('Item deleted successfully');
+      onItemsChange();
     } catch (error) {
       console.error('Error deleting item:', error);
       toast.error('Failed to delete item');

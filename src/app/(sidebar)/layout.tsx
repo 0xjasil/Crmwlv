@@ -31,11 +31,21 @@ export default async function RootLayout({
   if (token) {
     try {
       const decoded = jwt.decode(token) as { id: string; email: string; role: string; branchId?: string } | null;
-      if (decoded?.id) {
-        user = await cacheService.getOrSet<User | null>(`user:${decoded.id}`, 60, async () => {
-          return (await prisma.user.findUnique({
-            where: { id: decoded.id },
-          })) as unknown as User;
+      if (decoded?.id || decoded?.email) {
+        const cacheKey = decoded.id ? `user:${decoded.id}` : `user:email:${decoded.email}`;
+        user = await cacheService.getOrSet<User | null>(cacheKey, 60, async () => {
+          let found: User | null = null;
+          if (decoded.id) {
+            found = (await prisma.user.findUnique({
+              where: { id: decoded.id },
+            })) as unknown as User;
+          }
+          if (!found && decoded.email) {
+            found = (await prisma.user.findUnique({
+              where: { email: decoded.email },
+            })) as unknown as User;
+          }
+          return found;
         });
       }
     } catch (err) {
@@ -46,11 +56,21 @@ export default async function RootLayout({
   if (!user && userCookie) {
     try {
       const parsed = JSON.parse(decodeURIComponent(userCookie));
-      if (parsed?.id) {
-        user = await cacheService.getOrSet<User | null>(`user:${parsed.id}`, 60, async () => {
-          return (await prisma.user.findUnique({
-            where: { id: parsed.id },
-          })) as unknown as User;
+      if (parsed?.id || parsed?.email) {
+        const cacheKey = parsed.id ? `user:${parsed.id}` : `user:email:${parsed.email}`;
+        user = await cacheService.getOrSet<User | null>(cacheKey, 60, async () => {
+          let found: User | null = null;
+          if (parsed.id) {
+            found = (await prisma.user.findUnique({
+              where: { id: parsed.id },
+            })) as unknown as User;
+          }
+          if (!found && parsed.email) {
+            found = (await prisma.user.findUnique({
+              where: { email: parsed.email },
+            })) as unknown as User;
+          }
+          return found;
         });
       }
     } catch (e) {
