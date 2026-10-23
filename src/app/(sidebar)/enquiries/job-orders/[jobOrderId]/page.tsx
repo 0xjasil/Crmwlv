@@ -273,7 +273,7 @@ export default function JobOrderDetailPage({ params }: { params: Promise<{ jobOr
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalLeads}</div>
-            <p className="text-xs text-muted-foreground">Candidates assigned</p>
+            <p className="text-xs text-muted-foreground">Leads assigned</p>
           </CardContent>
         </Card>
         <Card className="shadow-sm border-l-4 border-l-orange-500">
@@ -314,7 +314,7 @@ export default function JobOrderDetailPage({ params }: { params: Promise<{ jobOr
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Job Leads Directory</CardTitle>
-              <CardDescription>Detailed list of all candidates and their current status</CardDescription>
+              <CardDescription>Solar prospects assigned to this installation campaign and their current status.</CardDescription>
             </div>
             <Badge variant="outline" className="bg-background">{totalLeads} Records</Badge>
           </div>
@@ -324,10 +324,10 @@ export default function JobOrderDetailPage({ params }: { params: Promise<{ jobOr
             <TableHeader className="bg-muted/30">
               <TableRow>
                 <TableHead className="w-12.5"></TableHead>
-                <TableHead>Candidate</TableHead>
+                <TableHead>Contact / Business</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Contact Info</TableHead>
-                <TableHead>Course & Service</TableHead>
+                <TableHead>Solar Package & Service</TableHead>
                 <TableHead>Last Contact</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>

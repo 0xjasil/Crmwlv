@@ -254,8 +254,8 @@ export default function EnquiriesPage() {
   return (
     <PageContainer>
       <PageHeader
-        title="Enquiries"
-        description="Manage, assign, and track all incoming lead enquiries"
+        title="Solar Leads"
+        description="Capture prospects, qualify solar projects, and move opportunities through your sales pipeline."
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -279,7 +279,7 @@ export default function EnquiriesPage() {
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search candidate name, phone, or email..."
+                placeholder="Search contact, business, phone, or email..."
                 className="pl-8.5 h-9 text-sm"
                 value={search}
                 onChange={(e) => handleSearchChange(e.target.value)}
@@ -362,7 +362,7 @@ export default function EnquiriesPage() {
         <CardHeader className="py-4 px-6 border-b border-border/60 bg-card">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-base font-semibold">Enquiry List</CardTitle>
+              <CardTitle className="text-base font-semibold">Lead Pipeline</CardTitle>
               <CardDescription className="text-xs">
                 {pagination ? `Showing page ${pagination.page} of ${pagination.pages} (${pagination.total} total)` : 'All customer leads'}
               </CardDescription>
@@ -381,8 +381,8 @@ export default function EnquiriesPage() {
             <div className="p-6">
               <EmptyState
                 icon={<Search className="size-6" />}
-                title="No enquiries found"
-                description={search ? 'No enquiries match your current search or filter criteria.' : 'No enquiries available in this view yet.'}
+                title="No leads found"
+                description={search ? 'No leads match your current search or filters.' : 'Add a prospect to start building your solar sales pipeline.'}
               />
             </div>
           ) : (
@@ -421,9 +421,9 @@ export default function EnquiriesPage() {
                           />
                         </TableHead>
                       )}
-                      <TableHead>Candidate</TableHead>
+                      <TableHead>Contact / Business</TableHead>
                       <TableHead>Contact</TableHead>
-                      <TableHead>Preferred Course</TableHead>
+                      <TableHead>Solar Package</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Assigned To</TableHead>
                       <TableHead>Assigned By</TableHead>

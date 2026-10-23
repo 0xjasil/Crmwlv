@@ -6,7 +6,7 @@ export const ENQUIRY_STATUS_OPTIONS = [
   { value: EnquiryStatus.INTERESTED, label: 'Interested', color: 'green' },
   { value: EnquiryStatus.NOT_INTERESTED, label: 'Not Interested', color: 'red' },
   { value: EnquiryStatus.FOLLOW_UP, label: 'Follow Up', color: 'orange' },
-  { value: EnquiryStatus.ENROLLED, label: 'Enrolled', color: 'emerald' },
+  { value: EnquiryStatus.ENROLLED, label: 'Converted', color: 'emerald' },
   { value: EnquiryStatus.DROPPED, label: 'Dropped', color: 'gray' },
   { value: EnquiryStatus.INVALID, label: 'Invalid', color: 'red' },
 ] as const;

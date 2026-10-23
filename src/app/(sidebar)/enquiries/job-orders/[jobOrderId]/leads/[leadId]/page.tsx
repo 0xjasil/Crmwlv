@@ -643,21 +643,21 @@ export default function JobLeadDetailPage({ params }: { params: Promise<{ jobOrd
                         </h3>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                             {enquiry.status !== EnquiryStatus.ENROLLED ? (
-                                <Link href={`/admissions?enquiryId=${enquiry.id}`} className="relative z-10 w-full">
+                                <Link href={`/customers?leadId=${enquiry.id}`} className="relative z-10 w-full">
                                     <Button
                                         className="relative z-10 w-full cursor-pointer"
                                         onClick={() => {
-                                            toast.info('Taking you to the admissions page...');
+                                            toast.info('Opening a new customer record with the lead details filled in.');
                                         }}
                                     >
                                         <UserPlus className="mr-2 h-4 w-4" />
-                                        Take Admission
+                                        Add as Customer
                                     </Button>
                                 </Link>
                             ) : (
                                 <Button className="relative z-10 w-full cursor-not-allowed" disabled>
                                     <UserPlus className="mr-2 h-4 w-4" />
-                                    Already Enrolled
+                                    Lead Converted
                                 </Button>
                             )}
 

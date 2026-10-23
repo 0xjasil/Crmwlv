@@ -437,10 +437,10 @@ export function EnquiryFormDialog({
                     name="candidateName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Candidate Name *</FormLabel>
+                        <FormLabel>Contact or Business Name *</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="Enter candidate name"
+                            placeholder="Enter a person or company name"
                             {...field}
                           />
                         </FormControl>
@@ -584,7 +584,7 @@ export function EnquiryFormDialog({
                     name="preferredCourseId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Preferred Course</FormLabel>
+                        <FormLabel>Solar Solution of Interest</FormLabel>
                         <Select
                           onValueChange={(value) =>
                             field.onChange(value || undefined)
@@ -593,7 +593,7 @@ export function EnquiryFormDialog({
                         >
                           <FormControl>
                             <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select course (optional)" />
+                              <SelectValue placeholder="Select a solar package (optional)" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -616,7 +616,7 @@ export function EnquiryFormDialog({
                     name="requiredServiceId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Required Service</FormLabel>
+                        <FormLabel>Service Need</FormLabel>
                         <Select
                           onValueChange={(value) =>
                             field.onChange(value || undefined)
@@ -625,7 +625,7 @@ export function EnquiryFormDialog({
                         >
                           <FormControl>
                             <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select service (optional)" />
+                              <SelectValue placeholder="Select installation or maintenance (optional)" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -735,7 +735,7 @@ export function EnquiryFormDialog({
                           <FormLabel>Feedback</FormLabel>
                           <FormControl>
                             <Textarea
-                              placeholder="Feedback from the candidate"
+                              placeholder="Site requirements, roof details, or customer feedback"
                               className="resize-none"
                               {...field}
                             />
@@ -755,7 +755,7 @@ export function EnquiryFormDialog({
                         <FormLabel>Notes</FormLabel>
                         <FormControl>
                           <Textarea
-                            placeholder="Additional notes about the enquiry"
+                              placeholder="Notes about the lead or proposed solar project"
                             className="resize-none"
                             {...field}
                           />

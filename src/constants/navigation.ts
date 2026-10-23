@@ -10,7 +10,7 @@ import {
   IconUsers,
   IconFileDollar,
   IconBriefcase,
-  IconSchool,
+  IconSun,
   IconChartBar
 } from '@tabler/icons-react';
 import type { SidebarData } from '@/types/navigation';
@@ -30,13 +30,13 @@ export const SIDEBAR_DATA: SidebarData = {
       icon: IconDashboard,
     },
     {
-      title: 'Enquiries',
+      title: 'Leads',
       url: '/enquiries',
       icon: IconUsers,
     },
     {
-      title: 'Job Orders',
-      url: '#',
+      title: 'Installations',
+      url: '/enquiries/job-orders',
       icon: IconBriefcase,
       isActive: false,
       items: [
@@ -51,27 +51,27 @@ export const SIDEBAR_DATA: SidebarData = {
       ],
     },
     {
-      title: 'Follow-ups',
+      title: 'Sales Follow-ups',
       url: '/follow-ups',
       icon: IconListDetails,
     },
     {
-      title: 'Call Register',
+      title: 'Sales Calls',
       url: '/call-register',
       icon: IconPhoneCall,
     },
     {
-      title: 'Admissions',
-      url: '/admissions',
-      icon: IconSchool,
+      title: 'Customers',
+      url: '/customers',
+      icon: IconUsers,
     },
     {
-      title: 'Service Billing',
+      title: 'Service Jobs',
       url: '/services',
       icon: IconFileDollar,
     },
     {
-      title: 'Proposals',
+      title: 'Quotes & Proposals',
       url: '/proposals',
       icon: IconFileText,
     },
@@ -83,7 +83,7 @@ export const SIDEBAR_DATA: SidebarData = {
       icon: IconChartBar,
     },
     {
-      title: 'Data Management',
+      title: 'Solar Catalog & Setup',
       url: '/admin/data-management',
       icon: IconDatabase,
     },

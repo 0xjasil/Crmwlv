@@ -80,7 +80,7 @@ interface Service {
 }
 
 const serviceBillSchema = z.object({
-  admissionId: z.string().min(1, "Student selection is required"),
+  admissionId: z.string().min(1, "Customer selection is required"),
   serviceIds: z
     .array(z.string())
     .min(1, "At least one service must be selected"),
@@ -179,7 +179,7 @@ export default function ServiceTable() {
 
     const columns: PdfColumn<ServiceBillingWithAdmission>[] = [
       { header: "Bill ID", key: "id" },
-      { header: "Candidate Name", key: (row) => row.admission.candidateName },
+      { header: "Customer Name", key: (row) => row.admission.candidateName },
       {
         header: "Services",
         key: (row) =>
@@ -381,8 +381,8 @@ export default function ServiceTable() {
   return (
     <PageContainer>
       <PageHeader
-        title="Service Billing"
-        description={`Track service orders, invoices, and collected payments • Billed Volume: ${formatCurrency(totalAmount)}`}
+        title="Installations & Service Jobs"
+        description={`Track solar installations, maintenance work, and collected payments • Billed Volume: ${formatCurrency(totalAmount)}`}
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -423,7 +423,7 @@ export default function ServiceTable() {
         <div className="relative w-full sm:flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search by candidate name or bill ID..."
+            placeholder="Search customer, project, or job ID..."
             className="pl-9 h-9 text-xs bg-background"
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
@@ -478,7 +478,7 @@ export default function ServiceTable() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[120px]">Bill ID</TableHead>
-                    <TableHead>Candidate Name</TableHead>
+                    <TableHead>Customer Name</TableHead>
                     <TableHead>Services</TableHead>
                     <TableHead className="w-[110px]">Bill Date</TableHead>
                     <TableHead className="w-[110px]">Status</TableHead>
@@ -495,8 +495,8 @@ export default function ServiceTable() {
           ) : serviceBills.length === 0 ? (
             <EmptyState
               icon={Wrench}
-              title="No service bills found"
-              description="Create a service bill for an enrolled candidate to start tracking payments."
+              title="No service jobs found"
+              description="Create an installation or maintenance job to track project work and payments."
               action={
                 <Button
                   size="sm"
@@ -521,7 +521,7 @@ export default function ServiceTable() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[120px]">Bill ID</TableHead>
-                    <TableHead>Candidate</TableHead>
+                    <TableHead>Customer / Project</TableHead>
                     <TableHead>Services</TableHead>
                     <TableHead
                       className="w-[120px] cursor-pointer hover:text-foreground transition-colors"

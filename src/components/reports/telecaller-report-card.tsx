@@ -105,7 +105,7 @@ export function TelecallerReportCard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardDescription>Total Telecallers</CardDescription>
+            <CardDescription>Sales Reps</CardDescription>
             <IconUsers className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -123,7 +123,7 @@ export function TelecallerReportCard() {
             <div className="text-2xl font-bold">
               {reportData.performance.reduce((sum, p) => sum + p.totalEnquiries, 0)}
             </div>
-            <p className="text-xs text-muted-foreground">Across all telecallers</p>
+            <p className="text-xs text-muted-foreground">Across the sales team</p>
           </CardContent>
         </Card>
 
@@ -211,7 +211,7 @@ export function TelecallerReportCard() {
         <Card>
           <CardHeader>
             <CardTitle>Enquiry Status Distribution</CardTitle>
-            <CardDescription>Breakdown of enquiry statuses by telecaller</CardDescription>
+            <CardDescription>Breakdown of lead statuses by sales rep</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -232,7 +232,7 @@ export function TelecallerReportCard() {
                       <p className="font-medium text-green-600">{stats.interestedEnquiries}</p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">Enrolled</p>
+                      <p className="text-muted-foreground">Converted</p>
                       <p className="font-medium text-emerald-600">{stats.enrolledEnquiries}</p>
                     </div>
                     <div>

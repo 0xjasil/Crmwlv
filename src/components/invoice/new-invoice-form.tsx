@@ -16,7 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { createInvoiceCustomer as createInvoiceCustomerRequest, createInvoiceCustomerFromAdmission, fetchInvoiceCatalog, fetchInvoiceCustomers, getPaymentNumberPreview, InvoiceCatalogItem, InvoiceCustomer, saveInvoice as saveInvoiceRequest, sendInvoiceEmail } from '@/lib/api/invoice-api';
+import { createInvoiceCustomer as createInvoiceCustomerRequest, fetchInvoiceCatalog, fetchInvoiceCustomers, getPaymentNumberPreview, InvoiceCatalogItem, InvoiceCustomer, saveInvoice as saveInvoiceRequest, sendInvoiceEmail } from '@/lib/api/invoice-api';
 import { PaymentNumberSettingsDialog } from '@/components/invoice/invoice-payments';
 import { PageContainer, PageHeader } from '@/components/ui/page-header';
 
@@ -46,7 +46,7 @@ function CustomerSelect({ value, onChange, customers, loading, onNew }: { value:
       </Button></PopoverTrigger>
       <PopoverContent align="start" className="w-[min(420px,calc(100vw-2rem))] p-0">
         <div className="border-b p-2"><div className="relative"><Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" /><Input autoFocus value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search customers" className="pl-8" /></div></div>
-        <div className="max-h-56 overflow-auto p-1">{loading ? <p className="px-3 py-6 text-center text-sm text-muted-foreground">Loading customers…</p> : filtered.length ? filtered.map((customer) => <button type="button" key={customer.id} onClick={() => { onChange(customer); setSearch(''); }} className="flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left text-sm hover:bg-muted"><span><span className="block font-medium">{customer.name}</span><span className="text-xs text-muted-foreground">{[customer.email, customer.phone, customer.sourceType === 'admission' ? 'Admission' : customer.sourceType === 'enquiry' ? 'Enquiry' : 'Customer'].filter(Boolean).join(' · ')}</span></span>{value?.id === customer.id && <Check className="size-4 text-primary" />}</button>) : <p className="px-3 py-6 text-center text-sm text-muted-foreground">No matching customers.</p>}</div>
+        <div className="max-h-56 overflow-auto p-1">{loading ? <p className="px-3 py-6 text-center text-sm text-muted-foreground">Loading customers…</p> : filtered.length ? filtered.map((customer) => <button type="button" key={customer.id} onClick={() => { onChange(customer); setSearch(''); }} className="flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left text-sm hover:bg-muted"><span><span className="block font-medium">{customer.name}</span><span className="text-xs text-muted-foreground">{[customer.email, customer.phone].filter(Boolean).join(' · ') || 'Solar customer'}</span></span>{value?.id === customer.id && <Check className="size-4 text-primary" />}</button>) : <p className="px-3 py-6 text-center text-sm text-muted-foreground">No saved customers found. Add a solar customer to continue.</p>}</div>
         <div className="border-t p-2"><Button type="button" variant="outline" className="w-full" onClick={onNew}><Plus className="size-4" /> New Customer</Button></div>
       </PopoverContent>
     </Popover>
@@ -138,7 +138,7 @@ export function NewInvoiceForm() {
     Promise.allSettled([fetchInvoiceCustomers(), fetchInvoiceCatalog()])
       .then(([customerResult, catalogResult]) => {
         if (!active) return;
-        if (customerResult.status === 'fulfilled') setCustomers(customerResult.value);
+        if (customerResult.status === 'fulfilled') setCustomers(customerResult.value.filter((entry) => entry.savedCustomer));
         else toast.error(customerResult.reason instanceof Error ? customerResult.reason.message : 'Could not load customers.');
         if (catalogResult.status === 'fulfilled') setCatalog(catalogResult.value);
         else toast.error(catalogResult.reason instanceof Error ? catalogResult.reason.message : 'Could not load solar item catalog.');
@@ -176,13 +176,7 @@ export function NewInvoiceForm() {
     if (numberMode === 'manual' && !invoiceNumber.trim()) { toast.error('Enter an invoice number or choose auto-generate.'); return; }
     setBusy(true);
     try {
-      let invoiceCustomer = customer;
-      if (customer.sourceType === 'admission') {
-        const saved = await createInvoiceCustomerFromAdmission(customer.id.replace(/^admission:/, ''));
-        invoiceCustomer = { id: saved.id, name: saved.name, email: saved.email ?? '', phone: saved.phone ?? '', address: saved.address ?? '', state: saved.state ?? '', gstin: saved.gstin ?? '', savedCustomer: true };
-        setCustomer(invoiceCustomer);
-        setCustomers((current) => [...current.filter((entry) => entry.id !== invoiceCustomer.id && entry.id !== customer.id), invoiceCustomer].sort((a, b) => a.name.localeCompare(b.name)));
-      }
+      const invoiceCustomer = customer;
       const billedTo = [invoiceCustomer.name, invoiceCustomer.address, invoiceCustomer.email, invoiceCustomer.phone, gstin ? `GSTIN: ${gstin}` : ''].filter(Boolean).join('\n');
       const effectiveTaxRate = subtotal > 0 ? Math.min(1, Math.max(0, taxAmount / subtotal)) : 0;
       const invoice = await saveInvoiceRequest({
@@ -222,16 +216,16 @@ export function NewInvoiceForm() {
   };
 
   return <PageContainer className="pb-4">
-    <PageHeader title="New Invoice" description="Create an invoice for a customer using your current solar service catalog." actions={<Button type="button" variant="outline" onClick={() => askLeave('/invoices')}><ArrowLeft className="mr-2 size-4" /> Back to invoices</Button>} />
+    <PageHeader title="New Sales Invoice" description="Bill a solar customer for products, installation, or ongoing service." actions={<Button type="button" variant="outline" onClick={() => askLeave('/invoices')}><ArrowLeft className="mr-2 size-4" /> Back to invoices</Button>} />
     <div className="space-y-5">
-      <Section title="Invoice Details">
+      <Section title="Sales Invoice Details">
         <div className="grid gap-x-8 gap-y-5 lg:grid-cols-[minmax(220px,0.75fr)_minmax(0,1.5fr)]">
           <div className="lg:col-span-2"><FieldLabel required>Customer Name</FieldLabel><CustomerSelect value={customer} customers={customers} loading={customersLoading} onNew={() => setNewCustomerOpen(true)} onChange={(selected) => { setCustomer(selected); if (selected) setGstin(selected.gstin || ''); }} />{errors && !customer && <p className="mt-1 text-xs text-destructive">Please select a customer.</p>}</div>
           <Field label="Invoice#" required={numberMode === 'manual'}><div className="flex gap-2"><Input value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} placeholder={numberMode === 'auto' ? 'Generated when saved' : 'Enter invoice number'} disabled={numberMode === 'auto'} /><Button type="button" variant="outline" size="icon" aria-label="Invoice number preferences" onClick={() => setPreferencesOpen(true)}><Settings2 className="size-4" /></Button></div></Field>
           <Field label="Invoice Date" required><DateInput date={invoiceDate} onChange={(date) => { setInvoiceDate(date); if (term === 'Due on Receipt') setDueDate(date); }} /></Field>
           <Field label="Terms"><select value={term} onChange={(e) => changeTerm(e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">{terms.map((entry) => <option key={entry}>{entry}</option>)}</select></Field>
           <Field label="Due Date"><DateInput date={dueDate} onChange={setDueDate} /></Field>
-          <Field label="Subject" className="lg:col-span-2"><Textarea value={subject} onChange={(event) => setSubject(event.target.value)} placeholder="Let your customer know what this Invoice is for" className="min-h-20 resize-y" /></Field>
+          <Field label="Subject" className="lg:col-span-2"><Textarea value={subject} onChange={(event) => setSubject(event.target.value)} placeholder="Solar installation, panels, maintenance, or other work" className="min-h-20 resize-y" /></Field>
         </div>
       </Section>
       <Section title="GST Details" action={<span className="text-xs text-muted-foreground">Optional · GSTIN is not required</span>}>
@@ -351,7 +345,7 @@ function NewCustomerDialog({ open, onOpenChange, onCreated }: { open: boolean; o
     <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
       <DialogHeader><DialogTitle>New Customer</DialogTitle><DialogDescription>Add a customer to the invoice directory. GST details are optional.</DialogDescription></DialogHeader>
       <form onSubmit={(event) => void save(event)} className="space-y-4">
-        <Field label="Customer Name" required><Input autoFocus required maxLength={160} value={form.name} onChange={(event) => update('name', event.target.value)} placeholder="Name or business name" /></Field>
+        <Field label="Customer Name" required><Input autoFocus required maxLength={160} value={form.name} onChange={(event) => update('name', event.target.value)} placeholder="Person or solar business name" /></Field>
         <Field label="Email"><Input type="email" maxLength={254} value={form.email} onChange={(event) => update('email', event.target.value)} placeholder="name@example.com" /></Field>
         <Field label="Phone"><Input type="tel" maxLength={32} value={form.phone} onChange={(event) => update('phone', event.target.value)} placeholder="Phone number" /></Field>
         <Field label="Billing Address"><Textarea maxLength={1000} value={form.address} onChange={(event) => update('address', event.target.value)} placeholder="Street, city, postal code" /></Field>

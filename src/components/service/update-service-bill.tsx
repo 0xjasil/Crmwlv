@@ -27,7 +27,7 @@ interface Service {
 }
 
 const serviceBillSchema = z.object({
-  admissionId: z.string().min(1, "Student selection is required"),
+  admissionId: z.string().min(1, "Customer selection is required"),
   serviceIds: z
     .array(z.string())
     .min(1, "At least one service must be selected"),
@@ -163,7 +163,7 @@ export default function EditServiceBillModal({
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Student</Label>
+              <Label>Customer / Project</Label>
               <div className="p-2.5 bg-muted rounded-md text-sm text-muted-foreground">
                 {serviceBill?.admission.candidateName}
               </div>

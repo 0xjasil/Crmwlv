@@ -106,8 +106,8 @@ export default function ProposalsPage() {
     <PageContainer>
       {/* Header */}
       <PageHeader
-        title="Proposals"
-        description="Draft, customize, and deliver commercial proposals and course estimates."
+        title="Quotes & Proposals"
+        description="Prepare and track solar system quotes, installation proposals, and customer approvals."
         actions={
           <div className="flex items-center gap-2">
             <Button

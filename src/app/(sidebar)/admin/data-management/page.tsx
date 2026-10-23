@@ -500,6 +500,23 @@ export default function DataManagementPage() {
     data: unknown[],
     columns: string[]
   ) => {
+    const solarTypeNames: Record<string, string> = {
+      course: 'solar package',
+      'required-service': 'installation requirement',
+      branch: 'service region',
+      source: 'lead source',
+      service: 'solar service',
+      role: 'team role',
+    };
+    const solarColumnNames: Record<string, string> = {
+      Name: type === 'course' ? 'Solar package' : type === 'service' ? 'Service' : 'Name',
+      Description: 'Package details',
+      Duration: 'Warranty / service term',
+      'Course Fee': 'System price',
+      'Admission Fee': 'Installation / survey charge',
+      'Semester Fee': 'Maintenance plan price',
+    };
+    const recordType = solarTypeNames[type] || type;
     const filteredData = data.filter((item) =>
       (item as { name: string }).name
         .toLowerCase()
@@ -512,7 +529,7 @@ export default function DataManagementPage() {
           <div className="flex items-center space-x-2">
             <Search className="h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder={`Search ${type}...`}
+              placeholder={`Search ${recordType}s...`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="max-w-sm"
@@ -527,16 +544,16 @@ export default function DataManagementPage() {
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
-                Add {type.charAt(0).toUpperCase() + type.slice(1)}
+                Add {recordType.charAt(0).toUpperCase() + recordType.slice(1)}
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>
-                  Create {type.charAt(0).toUpperCase() + type.slice(1)}
+                  Create {recordType.charAt(0).toUpperCase() + recordType.slice(1)}
                 </DialogTitle>
                 <DialogDescription>
-                  Add a new {type} to the system.
+                  Add a new {recordType} to your solar operations catalog.
                 </DialogDescription>
               </DialogHeader>
               {renderCreateForm(type)}
@@ -549,7 +566,7 @@ export default function DataManagementPage() {
             <TableHeader>
               <TableRow>
                 {columns.map((column) => (
-                  <TableHead key={column}>{column}</TableHead>
+                  <TableHead key={column}>{solarColumnNames[column] || column}</TableHead>
                 ))}
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -765,11 +782,11 @@ export default function DataManagementPage() {
             className="space-y-4"
           >
             <div className="space-y-2">
-              <Label htmlFor="course-name">Name</Label>
+              <Label htmlFor="course-name">Solar package name</Label>
               <Input
                 id="course-name"
                 {...courseForm.register("name")}
-                placeholder="Enter course name"
+                placeholder="e.g., 5 kW rooftop system"
               />
               {courseForm.formState.errors.name && (
                 <p className="text-sm text-destructive">
@@ -778,29 +795,29 @@ export default function DataManagementPage() {
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="course-description">Description</Label>
+              <Label htmlFor="course-description">Package details</Label>
               <Textarea
                 id="course-description"
                 {...courseForm.register("description")}
-                placeholder="Enter course description"
+                placeholder="Panels, inverter, mounting, and included work"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="course-duration">Duration</Label>
+              <Label htmlFor="course-duration">Warranty / service term</Label>
               <Input
                 id="course-duration"
                 {...courseForm.register("duration")}
-                placeholder="e.g., 6 months"
+                placeholder="e.g., 5-year product warranty"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-course-fee">Course Fee</Label>
+              <Label htmlFor="edit-course-fee">System price</Label>
               <Input
                 id="edit-course-fee"
                 type="number"
                 step="0.01"
                 {...courseForm.register("courseFee")}
-                placeholder="Enter course fee"
+                placeholder="Enter solar package price"
               />
               {courseForm.formState.errors.courseFee && (
                 <p className="text-sm text-destructive">
@@ -809,13 +826,13 @@ export default function DataManagementPage() {
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-admission-fee">Admission Fee</Label>
+              <Label htmlFor="edit-admission-fee">Installation / survey charge</Label>
               <Input
                 id="edit-admission-fee"
                 type="number"
                 step="0.01"
                 {...courseForm.register("admissionFee")}
-                placeholder="Enter admission fee"
+                placeholder="Enter installation or survey charge"
               />
               {courseForm.formState.errors.admissionFee && (
                 <p className="text-sm text-destructive">
@@ -824,13 +841,13 @@ export default function DataManagementPage() {
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-semester-fee">Semester Fee (optional)</Label>
+              <Label htmlFor="edit-semester-fee">Maintenance plan price (optional)</Label>
               <Input
                 id="edit-semester-fee"
                 type="number"
                 step="0.01"
                 {...courseForm.register("semesterFee")}
-                placeholder="Enter semester fee (optional)"
+                placeholder="Enter maintenance plan price (optional)"
               />
               {courseForm.formState.errors.semesterFee && (
                 <p className="text-sm text-destructive">
@@ -1033,10 +1050,9 @@ export default function DataManagementPage() {
   return (
     <div className="flex flex-1 flex-col space-y-6 p-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Data Management</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Solar Catalog &amp; Team Setup</h1>
         <p className="text-muted-foreground">
-          Manage system master data: roles, courses, branches, and enquiry
-          sources
+          Manage solar packages, installation requirements, service regions, lead sources, and team access.
         </p>
       </div>
 
@@ -1052,23 +1068,23 @@ export default function DataManagementPage() {
           </TabsTrigger>
           <TabsTrigger value="courses" className="flex items-center space-x-2">
             <BookOpen className="h-4 w-4" />
-            <span>Courses</span>
+            <span>Solar Packages</span>
           </TabsTrigger>
           <TabsTrigger value="required-services" className="flex items-center space-x-2">
             <BookOpen className="h-4 w-4" />
-            <span>Required Services</span>
+            <span>Installation Requirements</span>
           </TabsTrigger>
           <TabsTrigger value="branches" className="flex items-center space-x-2">
             <MapPin className="h-4 w-4" />
-            <span>Branches</span>
+            <span>Service Regions</span>
           </TabsTrigger>
           <TabsTrigger value="sources" className="flex items-center space-x-2">
             <Database className="h-4 w-4" />
-            <span>Sources</span>
+            <span>Lead Sources</span>
           </TabsTrigger>
           <TabsTrigger value="services" className="flex items-center space-x-2">
             <Wrench className="h-4 w-4" />
-            <span>Other Services</span>
+            <span>Solar Services</span>
           </TabsTrigger>
         </TabsList>
 
@@ -1089,9 +1105,9 @@ export default function DataManagementPage() {
         <TabsContent value="courses">
           <Card>
             <CardHeader>
-              <CardTitle>Courses</CardTitle>
+              <CardTitle>Solar Packages</CardTitle>
               <CardDescription>
-                Manage available courses and programs. Total: {courses.length}
+                Manage solar system packages, pricing, and warranty terms. Total: {courses.length}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1110,9 +1126,9 @@ export default function DataManagementPage() {
         <TabsContent value="required-services">
           <Card>
             <CardHeader>
-              <CardTitle>Required Services</CardTitle>
+              <CardTitle>Installation Requirements</CardTitle>
               <CardDescription>
-                Manage available required services and programs. Total: {requiredServices.length}
+                Manage common installation requirements. Total: {requiredServices.length}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1126,9 +1142,9 @@ export default function DataManagementPage() {
         <TabsContent value="branches">
           <Card>
             <CardHeader>
-              <CardTitle>Branches</CardTitle>
+              <CardTitle>Service Regions</CardTitle>
               <CardDescription>
-                Manage institute branches and locations. Total:{" "}
+                Manage service regions and office locations. Total:{" "}
                 {branches.length}
               </CardDescription>
             </CardHeader>
@@ -1146,10 +1162,9 @@ export default function DataManagementPage() {
         <TabsContent value="sources">
           <Card>
             <CardHeader>
-              <CardTitle>Enquiry Sources</CardTitle>
+              <CardTitle>Lead Sources</CardTitle>
               <CardDescription>
-                Manage enquiry sources like website, referral, advertisement,
-                etc. Total: {sources.length}
+                Manage lead sources such as website, referral, and advertising. Total: {sources.length}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1160,7 +1175,7 @@ export default function DataManagementPage() {
         <TabsContent value="services">
           <Card>
             <CardHeader>
-              <CardTitle>Services</CardTitle>
+              <CardTitle>Solar Services</CardTitle>
               <CardDescription>
                 Manage additional services and their prices. Total:{" "}
                 {services.length}
@@ -1234,9 +1249,9 @@ export default function DataManagementPage() {
           >
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Edit Course</DialogTitle>
+                  <DialogTitle>Edit Solar Package</DialogTitle>
                 <DialogDescription>
-                  Update course information.
+                  Update the solar package, pricing, and warranty information.
                 </DialogDescription>
               </DialogHeader>
               <form
@@ -1244,11 +1259,11 @@ export default function DataManagementPage() {
                 className="space-y-4"
               >
                 <div className="space-y-2">
-                  <Label htmlFor="edit-course-name">Name</Label>
+                  <Label htmlFor="edit-course-name">Solar package name</Label>
                   <Input
                     id="edit-course-name"
                     {...courseForm.register("name")}
-                    placeholder="Enter course name"
+                    placeholder="e.g., 5 kW rooftop system"
                   />
                   {courseForm.formState.errors.name && (
                     <p className="text-sm text-destructive">
@@ -1257,43 +1272,43 @@ export default function DataManagementPage() {
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-course-description">Description</Label>
+                  <Label htmlFor="edit-course-description">Package details</Label>
                   <Textarea
                     id="edit-course-description"
                     {...courseForm.register("description")}
-                    placeholder="Enter course description"
+                    placeholder="Panels, inverter, mounting, and included work"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-course-duration">Duration</Label>
+                  <Label htmlFor="edit-course-duration">Warranty / service term</Label>
                   <Input
                     id="edit-course-duration"
                     {...courseForm.register("duration")}
-                    placeholder="e.g., 6 months"
+                    placeholder="e.g., 5-year product warranty"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="Course Fee">Course Fee</Label>
+                  <Label htmlFor="Course Fee">System price</Label>
                   <Input
                     id="edit-course-fee"
                     {...courseForm.register("courseFee")}
-                    placeholder="Enter course fee"
+                    placeholder="Enter solar package price"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="Admission Fee">Admission Fee</Label>
+                  <Label htmlFor="Admission Fee">Installation / survey charge</Label>
                   <Input
                     id="edit-admission-fee"
                     {...courseForm.register("admissionFee")}
-                    placeholder="Enter admission fee"
+                    placeholder="Enter installation or survey charge"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="Semester Fee">Semester Fee</Label>
+                  <Label htmlFor="Semester Fee">Maintenance plan price</Label>
                   <Input
                     id="edit-semester-fee"
                     {...courseForm.register("semesterFee")}
-                    placeholder="Enter semester fee"
+                    placeholder="Enter maintenance plan price"
                   />
                 </div>
                 <div className="flex justify-end space-x-2">

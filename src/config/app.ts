@@ -1,6 +1,6 @@
 export const APP_CONFIG = {
   name: 'Elevate CRM',
-  description: 'Customer Relationship Management System',
+  description: 'Solar sales, installation, and customer service workspace',
   version: '1.0.0',
   author: 'Your Company',
 

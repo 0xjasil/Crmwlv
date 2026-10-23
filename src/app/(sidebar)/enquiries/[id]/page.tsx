@@ -441,7 +441,7 @@ export default function EnquiryDetailPage() {
                   Enquiry Details • Created {formatDate(enquiry.createdAt)}
                   {enquiry.status === 'ENROLLED' && (
                     <span className="ml-2 inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200">
-                      ✓ Admission Completed
+                      ✓ Lead Converted
                     </span>
                   )}
                 </p>
@@ -576,27 +576,27 @@ export default function EnquiryDetailPage() {
             </h3>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {enquiry.status !== EnquiryStatus.ENROLLED ? (
-                <Link href={`/admissions?enquiryId=${enquiry.id}`} className="relative z-10 w-full">
+                <Link href={`/customers?leadId=${enquiry.id}`} className="relative z-10 w-full">
                   <Button
                     className="relative z-10 w-full cursor-pointer"
                     onClick={() => {
                       if (enquiry.status === EnquiryStatus.ENROLLED) {
                         toast.info(
-                          'This enquiry has already been enrolled. Check the admissions section for details.'
+                          'This lead has already been converted. Check the customer directory for the saved record.'
                         );
                         return;
                       }
-                      toast.info('Taking you to the admissions page to complete the enrollment...');
+                      toast.info('Opening a new customer record with the lead details filled in.');
                     }}
                   >
                     <UserPlus className="mr-2 h-4 w-4" />
-                    Take Admission
+                    Add as Customer
                   </Button>
                 </Link>
               ) : (
                 <Button className="relative z-10 w-full cursor-not-allowed" disabled>
                   <UserPlus className="mr-2 h-4 w-4" />
-                  Already Enrolled
+                  Lead Converted
                 </Button>
               )}
 
@@ -1117,7 +1117,7 @@ export default function EnquiryDetailPage() {
                         </div>
                         <div>
                           <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                            Preferred Course
+                            Solar Package
                           </p>
                           <p className="text-sm text-gray-600 dark:text-gray-400">
                             {enquiry.preferredCourse.name}

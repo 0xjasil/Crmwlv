@@ -137,7 +137,7 @@ export default function CreateProposalPage() {
                     <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Create Proposal</h1>
+                    <h1 className="text-3xl font-bold text-gray-900">Create Solar Quote</h1>
                     <p className="text-gray-600">Draft a new proposal for a client</p>
                 </div>
             </div>
@@ -147,11 +147,11 @@ export default function CreateProposalPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle>Client Details</CardTitle>
-                            <CardDescription>Enter the client's information or select from Enquiries</CardDescription>
+                            <CardDescription>Enter the customer details or choose a solar lead to fill them in.</CardDescription>
                         </CardHeader>
                         <CardContent className="grid gap-4">
                             <div className="flex flex-col space-y-2">
-                                <Label>Import from Enquiry (Optional)</Label>
+                                <Label>Import from Lead (Optional)</Label>
                                 <Popover open={open} onOpenChange={setOpen}>
                                     <PopoverTrigger asChild>
                                         <Button
@@ -161,16 +161,16 @@ export default function CreateProposalPage() {
                                             className="w-full justify-between"
                                         >
                                             {selectedEnquiryId
-                                                ? enquiries.find((e) => e.id === selectedEnquiryId)?.candidateName || "Select enquiry..."
-                                                : "Select enquiry to auto-fill..."}
+                                                ? enquiries.find((e) => e.id === selectedEnquiryId)?.candidateName || "Select lead..."
+                                                : "Select a lead to auto-fill..."}
                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-[300px] sm:w-[400px] p-0" align="start">
                                         <Command>
-                                            <CommandInput placeholder="Search enquiry..." onValueChange={(val) => fetchEnquiries(val)} />
+                                            <CommandInput placeholder="Search leads..." onValueChange={(val) => fetchEnquiries(val)} />
                                             <CommandList>
-                                                <CommandEmpty>No enquiry found.</CommandEmpty>
+                                                <CommandEmpty>No lead found.</CommandEmpty>
                                                 <CommandGroup>
                                                     {enquiries.map((enquiry) => (
                                                         <CommandItem
