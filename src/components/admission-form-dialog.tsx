@@ -71,6 +71,7 @@ import {
   updateAdmission,
 } from "@/server/actions/admission-actions";
 import { uploadDocumentFile } from "@/server/actions/upload-actions";
+import { compressImageFile } from "@/lib/image-compress";
 import { CameraCaptureDialog } from "@/components/camera-capture-dialog";
 import { updateEnquiryStatus } from "@/server/actions/enquiry";
 import { EnquiryStatus } from "@/types/enquiry";
@@ -468,8 +469,9 @@ export function AdmissionFormDialog({
   const handleUploadFile = async (docKey: DocumentKey, file: File) => {
     try {
       setUploadingDoc(docKey);
+      const compressedFile = await compressImageFile(file, 1600, 1600, 0.82);
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", compressedFile);
 
       const data = await uploadDocumentFile(formData);
 

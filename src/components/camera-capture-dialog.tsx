@@ -19,6 +19,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { uploadDocumentFile } from "@/server/actions/upload-actions";
+import { compressImageFile } from "@/lib/image-compress";
 import { toast } from "sonner";
 
 interface CameraCaptureDialogProps {
@@ -187,7 +188,8 @@ export function CameraCaptureDialog({
     try {
       setIsUploading(true);
       const fileName = `${docKey}_${Date.now()}.jpg`;
-      const file = new File([blob], fileName, { type: "image/jpeg" });
+      const rawFile = new File([blob], fileName, { type: "image/jpeg" });
+      const file = await compressImageFile(rawFile, 1600, 1600, 0.82);
 
       const formData = new FormData();
       formData.append("file", file);

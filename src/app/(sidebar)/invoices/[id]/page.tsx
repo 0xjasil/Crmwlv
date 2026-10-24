@@ -37,6 +37,8 @@ import { InvoicePaymentHistory } from '@/components/invoice/invoice-payment-hist
 import { RecordPaymentDialog, RemindersDialog } from '@/components/invoice/invoice-payments';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { downloadZohoInvoicePdf, getZohoInvoicePdfBlobUrl } from '@/lib/invoice-zoho-pdf';
+import { ZohoInvoicePreviewDialog } from '@/components/invoice/zoho-invoice-preview-dialog';
 
 export default function InvoiceDetailPage() {
   const params = useParams();
@@ -52,6 +54,7 @@ export default function InvoiceDetailPage() {
   const [sendOpen, setSendOpen] = useState(false);
   const [sendEmail, setSendEmail] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [zohoPreviewOpen, setZohoPreviewOpen] = useState(false);
 
   // Fetch invoice data
   const fetchInvoice = useCallback(async () => {
@@ -79,27 +82,33 @@ export default function InvoiceDetailPage() {
   };
 
   const handleGeneratePDF = async (download: boolean = false) => {
+    if (!invoice) return;
     try {
       setIsGeneratingPDF(true);
-      toast.info('Opening PDF preview...');
-
-      const pdf = await fetchInvoicePdf(invoiceId);
-      const url = URL.createObjectURL(pdf);
       if (download) {
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.download = `Invoice-${invoice?.invoiceNumber || invoiceId}.pdf`;
-        anchor.click();
+        downloadZohoInvoicePdf(invoice);
+        toast.success(`Invoice ${invoice.invoiceNumber} PDF downloaded.`);
       } else {
-        window.open(url, '_blank', 'noopener,noreferrer');
+        setZohoPreviewOpen(true);
       }
-      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      toast.success(download ? 'Invoice PDF downloaded.' : 'Invoice PDF opened. Use the PDF viewer to print.');
     } catch (error) {
-      console.error('Error opening PDF preview:', error);
-      toast.error(
-        'Failed to open PDF preview: ' + (error instanceof Error ? error.message : 'Unknown error')
-      );
+      console.error('Error generating PDF:', error);
+      try {
+        const pdf = await fetchInvoicePdf(invoiceId);
+        const url = URL.createObjectURL(pdf);
+        if (download) {
+          const anchor = document.createElement('a');
+          anchor.href = url;
+          anchor.download = `Invoice-${invoice?.invoiceNumber || invoiceId}.pdf`;
+          anchor.click();
+        } else {
+          window.open(url, '_blank', 'noopener,noreferrer');
+        }
+        window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        toast.success(download ? 'Invoice PDF downloaded.' : 'Invoice PDF opened.');
+      } catch (backendErr) {
+        toast.error('Failed to generate PDF.');
+      }
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -303,21 +312,20 @@ export default function InvoiceDetailPage() {
           {Number(invoice.balanceDue ?? invoice.totalAmount - (invoice.amountPaid ?? 0)) > 0 && ![InvoiceStatus.DRAFT, InvoiceStatus.CANCELLED].includes(invoice.status) && <Button onClick={() => setPaymentOpen(true)}> <IndianRupee className="mr-2 h-4 w-4" />Record Payment</Button>}
           <Button
             variant="outline"
-            onClick={() => handleGeneratePDF()}
+            onClick={() => setZohoPreviewOpen(true)}
+            className="gap-2"
+          >
+            <Eye className="h-4 w-4" />
+            Preview PDF
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => handleGeneratePDF(true)}
             disabled={isGeneratingPDF}
             className="gap-2"
           >
-            {isGeneratingPDF ? (
-              <>
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                Opening...
-              </>
-            ) : (
-              <>
-                <Eye className="h-4 w-4" />
-                Preview PDF
-              </>
-            )}
+            <Download className="h-4 w-4" />
+            Download PDF
           </Button>
         </div>
       </div>
@@ -493,6 +501,11 @@ export default function InvoiceDetailPage() {
       <Dialog open={sendOpen} onOpenChange={(open) => { if (!isSending) setSendOpen(open); }}>
         <DialogContent><DialogHeader><DialogTitle>Send Invoice</DialogTitle><DialogDescription>Send the invoice PDF to your customer by email.</DialogDescription></DialogHeader><form onSubmit={(event) => void handleSendInvoice(event)} className="space-y-4"><label className="grid gap-2 text-sm font-medium">To<Input type="email" required value={sendEmail} onChange={(event) => setSendEmail(event.target.value)} placeholder="customer@example.com" /></label><DialogFooter><Button type="button" variant="outline" onClick={() => setSendOpen(false)} disabled={isSending}>Cancel</Button><Button type="submit" disabled={isSending}>{isSending ? 'Sending…' : 'Send with PDF'}</Button></DialogFooter></form></DialogContent>
       </Dialog>
+      <ZohoInvoicePreviewDialog
+        open={zohoPreviewOpen}
+        onOpenChange={setZohoPreviewOpen}
+        invoice={invoice}
+      />
     </div>
   );
 }

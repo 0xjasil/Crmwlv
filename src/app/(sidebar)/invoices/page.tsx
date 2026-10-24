@@ -20,8 +20,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, Eye, Edit, Trash2, MoreVertical, FileText, RotateCw, Receipt } from 'lucide-react';
+import { Search, Eye, Edit, Trash2, MoreVertical, FileText, RotateCw, Receipt, Download } from 'lucide-react';
 import { fetchInvoicesPage } from '@/lib/api/invoice-api';
+import { downloadZohoInvoicePdf } from '@/lib/invoice-zoho-pdf';
+import { ZohoInvoicePreviewDialog } from '@/components/invoice/zoho-invoice-preview-dialog';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { InvoiceWithItems } from '@/types/invoice';
@@ -71,6 +73,10 @@ export default function InvoicesPage() {
     id: string;
     invoiceNumber: string;
   } | null>(null);
+
+  // Zoho Preview dialog state
+  const [previewInvoice, setPreviewInvoice] = useState<InvoiceWithItems | null>(null);
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
 
   // Fetch invoices
   const fetchInvoicesData = useCallback(async () => {
@@ -132,17 +138,18 @@ export default function InvoicesPage() {
     setDeleteDialogOpen(true);
   };
 
-  const handleGeneratePDF = async (invoiceId: string) => {
+  const handlePreviewPdf = (inv: InvoiceWithItems) => {
+    setPreviewInvoice(inv);
+    setPreviewDialogOpen(true);
+  };
+
+  const handleDownloadPdf = (inv: InvoiceWithItems) => {
     try {
-      toast.info('Opening PDF preview...');
-      const previewUrl = `/api/invoices/${invoiceId}/pdf?preview=true`;
-      window.open(previewUrl, '_blank');
-      toast.success('PDF preview opened in new tab!');
-    } catch (error) {
-      console.error('Error opening PDF preview:', error);
-      toast.error(
-        'Failed to open PDF preview: ' + (error instanceof Error ? error.message : 'Unknown error')
-      );
+      downloadZohoInvoicePdf(inv);
+      toast.success(`Invoice ${inv.invoiceNumber} PDF downloaded!`);
+    } catch (err: any) {
+      console.error('Failed to download PDF:', err);
+      toast.error('Failed to download invoice PDF.');
     }
   };
 
@@ -304,11 +311,18 @@ export default function InvoicesPage() {
                               Edit Invoice
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => handleGeneratePDF(invoice.id)}
+                              onClick={() => handlePreviewPdf(invoice)}
                               className="text-xs"
                             >
                               <FileText className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
                               Preview PDF
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleDownloadPdf(invoice)}
+                              className="text-xs"
+                            >
+                              <Download className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                              Download PDF
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
@@ -368,6 +382,12 @@ export default function InvoicesPage() {
           onOpenChange={setDeleteDialogOpen}
         />
       )}
+      {/* Zoho Preview Dialog */}
+      <ZohoInvoicePreviewDialog
+        open={previewDialogOpen}
+        onOpenChange={setPreviewDialogOpen}
+        invoice={previewInvoice}
+      />
     </PageContainer>
   );
 }

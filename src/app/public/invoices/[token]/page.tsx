@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { fetchInvoicePdf, fetchPublicInvoice } from '@/lib/api/invoice-api';
 import { formatCurrency } from '@/lib/utils';
+import { downloadZohoInvoicePdf, getZohoInvoicePdfBlobUrl } from '@/lib/invoice-zoho-pdf';
 
 type PublicInvoice = {
   id: string; invoiceNumber: string; billedTo: string; invoiceDate: string; dueDate?: string | null;
@@ -26,8 +27,34 @@ export default function PublicInvoicePage() {
   useEffect(() => { void fetchPublicInvoice(token).then((data) => setInvoice(data as unknown as PublicInvoice)).catch((error) => toast.error(error instanceof Error ? error.message : 'This invoice is unavailable.')).finally(() => setLoading(false)); }, [token]);
   const getPdf = async (download: boolean) => {
     if (!invoice) return;
-    try { const blob = await fetchInvoicePdf(invoice.id, token); const url = URL.createObjectURL(blob); if (download) { const a = document.createElement('a'); a.href = url; a.download = `Invoice-${invoice.invoiceNumber}.pdf`; a.click(); } else window.open(url, '_blank', 'noopener,noreferrer'); window.setTimeout(() => URL.revokeObjectURL(url), 60_000); }
-    catch (error) { toast.error(error instanceof Error ? error.message : 'Could not load invoice PDF.'); }
+    try {
+      if (download) {
+        downloadZohoInvoicePdf(invoice as any);
+        toast.success(`Invoice ${invoice.invoiceNumber} PDF downloaded.`);
+        return;
+      } else {
+        const url = getZohoInvoicePdfBlobUrl(invoice as any);
+        window.open(url, '_blank', 'noopener,noreferrer');
+        window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        return;
+      }
+    } catch {
+      try {
+        const blob = await fetchInvoicePdf(invoice.id, token);
+        const url = URL.createObjectURL(blob);
+        if (download) {
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `Invoice-${invoice.invoiceNumber}.pdf`;
+          a.click();
+        } else {
+          window.open(url, '_blank', 'noopener,noreferrer');
+        }
+        window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Could not load invoice PDF.');
+      }
+    }
   };
   if (loading) return <main className="mx-auto max-w-4xl p-4 md:p-8"><Card><CardContent className="py-16 text-center text-sm text-muted-foreground">Loading invoice…</CardContent></Card></main>;
   if (!invoice) return <main className="mx-auto max-w-4xl p-4 md:p-8"><Card><CardContent className="py-16 text-center"><Receipt className="mx-auto mb-3 size-10 text-muted-foreground" /><p className="font-medium">Invoice link unavailable</p><p className="mt-1 text-sm text-muted-foreground">This link may have been revoked.</p></CardContent></Card></main>;
