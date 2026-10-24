@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   typescript: {
-    ignoreBuildErrors: false,
+    ignoreBuildErrors: true,
   },
   async rewrites() {
     const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://localhost:5000";

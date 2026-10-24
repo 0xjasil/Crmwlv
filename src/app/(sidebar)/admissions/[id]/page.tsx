@@ -38,6 +38,8 @@ import { Clock } from "lucide-react";
 import Link from "next/link";
 import { InstallationTimelineCard } from "@/components/installation-timeline-card";
 
+export const dynamic = 'force-dynamic';
+
 export default async function AdmissionDetailPage({
   params,
 }: {
@@ -45,15 +47,12 @@ export default async function AdmissionDetailPage({
 }) {
   const { id } = await params;
 
-  console.log(id);
-
   const result = await getAdmissionById({ id: id }).catch((error) => {
-    toast.error(error.message);
+    console.error("Error fetching admission:", error);
     redirect("/admissions");
   });
 
   if (!result || !result.data) {
-    toast.error("Admission not found");
     redirect("/admissions");
   }
 
