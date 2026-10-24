@@ -63,6 +63,7 @@ pnpm db:seed
 *   **Component Structure:** Components are designed to be reusable and composable, following the single responsibility principle.
 *   **Utility Functions:** Common functions are centralized in `src/lib/utils.ts`.
 *   **Database:** The database schema is managed with Prisma in `prisma/schema.prisma`.
+*   **Git Commit Messages:** Whenever committing to the repository, write comprehensive, detailed commit messages listing all completed tasks, fixes, and features as itemized bullet points.
 
 ## Page-by-Page Functionality
 
