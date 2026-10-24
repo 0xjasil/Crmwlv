@@ -231,6 +231,7 @@ export async function getEnquiries(filters: EnquiryFilters = {}): Promise<Action
           email: true,
           status: true,
           source: true,
+          sourceId: true,
           notes: true,
           feedback: true,
           lastContactDate: true,
@@ -240,6 +241,7 @@ export async function getEnquiries(filters: EnquiryFilters = {}): Promise<Action
           branch: { select: { id: true, name: true } },
           preferredCourse: { select: { id: true, name: true } },
           service: { select: { id: true, name: true } },
+          enquirySource: { select: { id: true, name: true } },
           assignedTo: {
             select: {
               id: true,

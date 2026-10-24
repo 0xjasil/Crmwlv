@@ -214,14 +214,14 @@ export async function createCourse(
 
     return {
       success: true,
-      message: "Course created successfully",
+      message: "Capacity created successfully",
       data: course,
     };
   } catch (error) {
-    console.error("Error creating course:", error);
+    console.error("Error creating capacity:", error);
     return {
       success: false,
-      message: "Failed to create course",
+      message: "Failed to create capacity",
     };
   }
 }
@@ -247,14 +247,14 @@ export async function updateCourse(
 
     return {
       success: true,
-      message: "Course updated successfully",
+      message: "Capacity updated successfully",
       data: course,
     };
   } catch (error) {
-    console.error("Error updating course:", error);
+    console.error("Error updating capacity:", error);
     return {
       success: false,
-      message: "Failed to update course",
+      message: "Failed to update capacity",
     };
   }
 }
@@ -263,7 +263,7 @@ export async function deleteCourse(
   input: DeleteInput
 ): Promise<ActionResponse> {
   try {
-    console.log("Deleting course with ID:", input.id);
+    console.log("Deleting capacity with ID:", input.id);
 
     await prisma.admission.deleteMany({
       where: {
@@ -280,13 +280,13 @@ export async function deleteCourse(
 
     return {
       success: true,
-      message: "Course deleted successfully",
+      message: "Capacity deleted successfully",
     };
   } catch (error) {
-    console.error("Error deleting course:", error);
+    console.error("Error deleting capacity:", error);
     return {
       success: false,
-      message: "Failed to delete course",
+      message: "Failed to delete capacity",
     };
   }
 }

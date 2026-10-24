@@ -62,6 +62,8 @@ import {
   Package,
   Search,
   Wrench,
+  Zap,
+  RotateCcw,
 } from "lucide-react";
 import {
   getAllRoles,
@@ -104,17 +106,38 @@ const roleSchema = z.object({
   description: z.string().optional(),
 });
 
+// Separate options from Solar Price List
+const SOLAR_CAPACITIES = ["3 KW", "5 KW", "3+5 KW"] as const;
+const SOLAR_PANEL_BRANDS = ["EMMVEE", "ADANI", "WAREE"] as const;
+
+const SOLAR_RATES: Record<
+  string,
+  Record<string, { price: number; kseb: number; afterSubsidy?: number; grandTotal: number }>
+> = {
+  "3 KW": {
+    EMMVEE: { price: 210000, kseb: 4500, afterSubsidy: 132000, grandTotal: 214500 },
+    ADANI: { price: 217000, kseb: 4500, afterSubsidy: 139000, grandTotal: 221500 },
+    WAREE: { price: 217000, kseb: 4500, afterSubsidy: 139000, grandTotal: 221500 },
+  },
+  "5 KW": {
+    EMMVEE: { price: 310000, kseb: 5500, afterSubsidy: 232000, grandTotal: 315500 },
+    ADANI: { price: 320000, kseb: 5500, afterSubsidy: 242000, grandTotal: 325500 },
+    WAREE: { price: 320000, kseb: 5500, afterSubsidy: 242000, grandTotal: 325500 },
+  },
+  "3+5 KW": {
+    EMMVEE: { price: 235000, kseb: 5500, grandTotal: 240500 },
+    ADANI: { price: 242000, kseb: 5500, grandTotal: 247500 },
+    WAREE: { price: 242000, kseb: 5500, grandTotal: 247500 },
+  },
+};
+
 const courseSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1, "Capacity size/name is required"),
   description: z.string().optional(),
-  duration: z.string().optional(),
-  courseFee: z.coerce.number().min(1, "Course Fee is required"),
-  admissionFee: z.coerce.number().min(1, "Admission Fee is required"),
-  semesterFee: z.coerce
-    .number()
-    .min(0, "Semester Fee must be 0 or more")
-    .optional()
-    .nullable(),
+  duration: z.string().optional(), // Solar Panel Brand (EMMVEE, ADANI, WAREE)
+  courseFee: z.coerce.number().min(0, "System price must be 0 or more"),
+  admissionFee: z.coerce.number().min(0, "KSEB Fee must be 0 or more"), // KSEB Fee
+  semesterFee: z.coerce.number().min(0).optional().nullable(),
 });
 
 const branchSchema = z.object({
@@ -164,6 +187,14 @@ export default function DataManagementPage() {
   const roleForm = useForm<RoleForm>({ resolver: zodResolver(roleSchema) });
   const courseForm = useForm<CourseForm>({
     resolver: zodResolver(courseSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      duration: "",
+      courseFee: 0,
+      admissionFee: 0,
+      semesterFee: 0,
+    },
   });
   const branchForm = useForm<BranchForm>({
     resolver: zodResolver(branchSchema),
@@ -500,23 +531,6 @@ export default function DataManagementPage() {
     data: unknown[],
     columns: string[]
   ) => {
-    const solarTypeNames: Record<string, string> = {
-      course: 'solar package',
-      'required-service': 'installation requirement',
-      branch: 'service region',
-      source: 'lead source',
-      service: 'solar service',
-      role: 'team role',
-    };
-    const solarColumnNames: Record<string, string> = {
-      Name: type === 'course' ? 'Solar package' : type === 'service' ? 'Service' : 'Name',
-      Description: 'Package details',
-      Duration: 'Warranty / service term',
-      'Course Fee': 'System price',
-      'Admission Fee': 'Installation / survey charge',
-      'Semester Fee': 'Maintenance plan price',
-    };
-    const recordType = solarTypeNames[type] || type;
     const filteredData = data.filter((item) =>
       (item as { name: string }).name
         .toLowerCase()
@@ -529,7 +543,7 @@ export default function DataManagementPage() {
           <div className="flex items-center space-x-2">
             <Search className="h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder={`Search ${recordType}s...`}
+              placeholder={`Search ${type}...`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="max-w-sm"
@@ -544,16 +558,18 @@ export default function DataManagementPage() {
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
-                Add {recordType.charAt(0).toUpperCase() + recordType.slice(1)}
+                Add {type === "course" ? "Capacity" : type.charAt(0).toUpperCase() + type.slice(1)}
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className={type === "course" ? "sm:max-w-xl max-h-[90vh] overflow-y-auto" : ""}>
               <DialogHeader>
                 <DialogTitle>
-                  Create {recordType.charAt(0).toUpperCase() + recordType.slice(1)}
+                  Create {type === "course" ? "Capacity" : type.charAt(0).toUpperCase() + type.slice(1)}
                 </DialogTitle>
                 <DialogDescription>
-                  Add a new {recordType} to your solar operations catalog.
+                  {type === "course"
+                    ? "Add a new solar capacity package based on the official price list."
+                    : `Add a new ${type} to the system.`}
                 </DialogDescription>
               </DialogHeader>
               {renderCreateForm(type)}
@@ -566,7 +582,7 @@ export default function DataManagementPage() {
             <TableHeader>
               <TableRow>
                 {columns.map((column) => (
-                  <TableHead key={column}>{solarColumnNames[column] || column}</TableHead>
+                  <TableHead key={column}>{column}</TableHead>
                 ))}
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -595,8 +611,10 @@ export default function DataManagementPage() {
                           {(() => {
                             switch (column) {
                               case "Name":
+                              case "Capacity":
+                              case "Capacity / Name":
                                 return (
-                                  <div className="font-medium">
+                                  <div className="font-semibold text-foreground">
                                     {typedItem.name}
                                   </div>
                                 );
@@ -606,8 +624,14 @@ export default function DataManagementPage() {
                                     {(typedItem.description as string) || "-"}
                                   </div>
                                 );
+                              case "Panel Brand":
                               case "Duration":
-                                return (typedItem.duration as string) || "-";
+                              case "System Type / Warranty":
+                                return (
+                                  <span className="font-medium">
+                                    {(typedItem.duration as string) || "-"}
+                                  </span>
+                                );
 
                               case "Address":
                                 return (
@@ -620,24 +644,51 @@ export default function DataManagementPage() {
                               case "Email":
                                 return (typedItem.email as string) || "-";
                               case "Course Fee":
+                              case "Price":
+                              case "Price (₹)":
+                              case "Estimated Price (₹)":
                                 return typedItem.courseFee !== null &&
                                   typedItem.courseFee !== undefined
-                                  ? `${typedItem.courseFee}`
+                                  ? `₹${Number(typedItem.courseFee).toLocaleString("en-IN")}`
                                   : "-";
                               case "Admission Fee":
+                              case "KSEB":
+                              case "KSEB (₹)":
+                              case "Booking Advance (₹)":
                                 return typedItem.admissionFee !== null &&
                                   typedItem.admissionFee !== undefined
-                                  ? `${typedItem.admissionFee}`
+                                  ? `₹${Number(typedItem.admissionFee).toLocaleString("en-IN")}`
                                   : "-";
+                              case "Grand Total":
+                              case "Grand Total (₹)": {
+                                const p = Number(typedItem.courseFee || 0);
+                                const k = Number(typedItem.admissionFee || 0);
+                                return p + k > 0 ? (
+                                  <span className="font-semibold text-primary">
+                                    ₹{(p + k).toLocaleString("en-IN")}
+                                  </span>
+                                ) : (
+                                  "-"
+                                );
+                              }
+                              case "After Subsidy":
+                              case "After Subsidy (₹)": {
+                                const p = Number(typedItem.courseFee || 0);
+                                if (!p) return "-";
+                                const is3Plus5 = String(typedItem.name || "").includes("3+5");
+                                if (is3Plus5) return "-";
+                                const afterSub = p >= 150000 ? p - 78000 : p;
+                                return (
+                                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                                    ₹{afterSub.toLocaleString("en-IN")}
+                                  </span>
+                                );
+                              }
                               case "Semester Fee":
+                              case "Subsidy / Extra (₹)":
                                 return typedItem.semesterFee !== null &&
                                   typedItem.semesterFee !== undefined
-                                  ? `${typedItem.semesterFee}`
-                                  : "-";
-                              case "Price":
-                                return typedItem.price !== null &&
-                                  typedItem.price !== undefined
-                                  ? `${typedItem.price}`
+                                  ? `₹${Number(typedItem.semesterFee).toLocaleString("en-IN")}`
                                   : "-";
                               default:
                                 return "-";
@@ -775,87 +826,316 @@ export default function DataManagementPage() {
           </form>
         );
 
-      case "course":
+      case "course": {
+        const watchedName = courseForm.watch("name") || "";
+        const watchedDuration = courseForm.watch("duration") || "";
+        const watchedPrice = Number(courseForm.watch("courseFee") || 0);
+        const watchedKseb = Number(courseForm.watch("admissionFee") || 0);
+
+        const handleSelectCapacity = (cap: string) => {
+          courseForm.setValue("name", cap, { shouldValidate: true });
+          const brand = (courseForm.getValues("duration") || "").toUpperCase();
+          if (brand && SOLAR_RATES[cap]?.[brand]) {
+            const rate = SOLAR_RATES[cap][brand];
+            courseForm.setValue("courseFee", rate.price, { shouldValidate: true });
+            courseForm.setValue("admissionFee", rate.kseb, { shouldValidate: true });
+            courseForm.setValue(
+              "description",
+              `${cap} On-Grid Solar System with ${brand} Panels. KSEB Fee: ₹${rate.kseb.toLocaleString("en-IN")}. Grand Total: ₹${rate.grandTotal.toLocaleString("en-IN")}.`
+            );
+          } else if (cap === "3 KW") {
+            courseForm.setValue("admissionFee", 4500, { shouldValidate: true });
+          } else if (cap === "5 KW" || cap === "3+5 KW") {
+            courseForm.setValue("admissionFee", 5500, { shouldValidate: true });
+          }
+        };
+
+        const handleSelectBrand = (brand: string) => {
+          courseForm.setValue("duration", brand, { shouldValidate: true });
+          const cap = courseForm.getValues("name") || "";
+          if (cap && SOLAR_RATES[cap]?.[brand]) {
+            const rate = SOLAR_RATES[cap][brand];
+            courseForm.setValue("courseFee", rate.price, { shouldValidate: true });
+            courseForm.setValue("admissionFee", rate.kseb, { shouldValidate: true });
+            courseForm.setValue(
+              "description",
+              `${cap} On-Grid Solar System with ${brand} Panels. KSEB Fee: ₹${rate.kseb.toLocaleString("en-IN")}. Grand Total: ₹${rate.grandTotal.toLocaleString("en-IN")}.`
+            );
+          }
+        };
+
+        const handleResetManual = () => {
+          courseForm.setValue("name", "", { shouldValidate: false });
+          courseForm.setValue("duration", "", { shouldValidate: false });
+          courseForm.setValue("courseFee", 0, { shouldValidate: false });
+          courseForm.setValue("admissionFee", 0, { shouldValidate: false });
+          courseForm.setValue("semesterFee", 0, { shouldValidate: false });
+          courseForm.setValue("description", "", { shouldValidate: false });
+        };
+
+        const grandTotal = watchedPrice + watchedKseb;
+        const is3Plus5 = watchedName.includes("3+5");
+        const subsidy = !is3Plus5 && watchedPrice >= 150000 ? 78000 : 0;
+        const afterSubsidy = watchedPrice > 0 ? watchedPrice - subsidy : 0;
+        const matchedRate =
+          watchedName && watchedDuration
+            ? SOLAR_RATES[watchedName]?.[watchedDuration.toUpperCase()]
+            : undefined;
+
         return (
           <form
             onSubmit={courseForm.handleSubmit(handleCreateCourse)}
             className="space-y-4"
           >
-            <div className="space-y-2">
-              <Label htmlFor="course-name">Solar package name</Label>
-              <Input
-                id="course-name"
-                {...courseForm.register("name")}
-                placeholder="e.g., 5 kW rooftop system"
-              />
-              {courseForm.formState.errors.name && (
-                <p className="text-sm text-destructive">
-                  {courseForm.formState.errors.name.message}
-                </p>
+            {/* Separate Option Selectors from Solar Price List */}
+            <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
+              <div className="flex items-center justify-between border-b pb-2">
+                <span className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
+                  <Zap className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
+                  Solar Price List (Select Separately)
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-6 text-[11px] px-2 text-muted-foreground hover:text-foreground"
+                  onClick={handleResetManual}
+                >
+                  <RotateCcw className="h-3 w-3 mr-1" />
+                  Clear / Manual Re-enter
+                </Button>
+              </div>
+
+              {/* 1. Capacity Option (Separate) */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-medium text-muted-foreground">
+                    1. Select Capacity:
+                  </span>
+                  {watchedName && (
+                    <span className="text-[10px] text-primary font-medium">
+                      Current: {watchedName}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {SOLAR_CAPACITIES.map((cap) => {
+                    const isSelected = watchedName === cap;
+                    return (
+                      <Button
+                        key={cap}
+                        type="button"
+                        variant={isSelected ? "default" : "outline"}
+                        size="sm"
+                        className={`h-7 text-xs px-3 transition-all ${
+                          isSelected
+                            ? "bg-primary text-primary-foreground font-semibold shadow-sm"
+                            : "border-border/80 hover:border-primary hover:bg-primary/5"
+                        }`}
+                        onClick={() => handleSelectCapacity(cap)}
+                      >
+                        {cap}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 2. Solar Panel Brand Option (Separate) */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-medium text-muted-foreground">
+                    2. Select Solar Panel Brand:
+                  </span>
+                  {watchedDuration && (
+                    <span className="text-[10px] text-primary font-medium">
+                      Current: {watchedDuration}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {SOLAR_PANEL_BRANDS.map((brand) => {
+                    const isSelected = watchedDuration.toUpperCase() === brand;
+                    return (
+                      <Button
+                        key={brand}
+                        type="button"
+                        variant={isSelected ? "default" : "outline"}
+                        size="sm"
+                        className={`h-7 text-xs px-3 transition-all ${
+                          isSelected
+                            ? "bg-primary text-primary-foreground font-semibold shadow-sm"
+                            : "border-border/80 hover:border-primary hover:bg-primary/5"
+                        }`}
+                        onClick={() => handleSelectBrand(brand)}
+                      >
+                        {brand}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Match notice */}
+              {matchedRate && (
+                <div className="text-[11px] bg-primary/10 text-primary border border-primary/20 rounded px-2.5 py-1.5 flex items-center justify-between">
+                  <span>
+                    ✓ Rate Match for <strong>{watchedName} + {watchedDuration}</strong>: Base ₹{matchedRate.price.toLocaleString("en-IN")} + KSEB ₹{matchedRate.kseb.toLocaleString("en-IN")}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    (Editable below)
+                  </span>
+                </div>
               )}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="course-description">Package details</Label>
+
+            {/* Manual Form Inputs - Re-enter or customize anytime */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="course-name" className="text-xs font-semibold">
+                    Capacity / System Size *
+                  </Label>
+                  <span className="text-[10px] text-muted-foreground">Type or select above</span>
+                </div>
+                <Input
+                  id="course-name"
+                  {...courseForm.register("name")}
+                  placeholder="e.g., 3 KW (or 5 KW, 3+5 KW)"
+                />
+                {courseForm.formState.errors.name && (
+                  <p className="text-xs text-destructive">
+                    {courseForm.formState.errors.name.message}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="course-duration" className="text-xs font-semibold">
+                    Solar Panel Brand
+                  </Label>
+                  <span className="text-[10px] text-muted-foreground">Type or select above</span>
+                </div>
+                <Input
+                  id="course-duration"
+                  {...courseForm.register("duration")}
+                  placeholder="e.g., EMMVEE, ADANI, WAREE"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="create-course-fee" className="text-xs font-semibold">
+                    System Price (₹) *
+                  </Label>
+                  <span className="text-[10px] text-muted-foreground">Manually re-enter anytime</span>
+                </div>
+                <Input
+                  id="create-course-fee"
+                  type="number"
+                  step="1"
+                  {...courseForm.register("courseFee")}
+                  placeholder="e.g., 210000 (3 KW) or 310000 (5 KW)"
+                />
+                <div className="flex flex-wrap gap-1 pt-0.5">
+                  {[210000, 217000, 310000, 320000, 235000, 242000].map((amt) => (
+                    <button
+                      key={amt}
+                      type="button"
+                      className="text-[10px] px-1.5 py-0.5 rounded bg-muted hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors border"
+                      onClick={() => courseForm.setValue("courseFee", amt, { shouldValidate: true })}
+                    >
+                      ₹{(amt / 1000).toFixed(0)}k
+                    </button>
+                  ))}
+                </div>
+                {courseForm.formState.errors.courseFee && (
+                  <p className="text-xs text-destructive">
+                    {courseForm.formState.errors.courseFee.message}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="create-admission-fee" className="text-xs font-semibold">
+                    KSEB Fee (₹)
+                  </Label>
+                  <span className="text-[10px] text-muted-foreground">Manually re-enter anytime</span>
+                </div>
+                <Input
+                  id="create-admission-fee"
+                  type="number"
+                  step="1"
+                  {...courseForm.register("admissionFee")}
+                  placeholder="e.g., 4500 (3 KW) or 5500 (5 KW)"
+                />
+                <div className="flex flex-wrap gap-1 pt-0.5">
+                  {[4500, 5500, 0].map((amt) => (
+                    <button
+                      key={amt}
+                      type="button"
+                      className="text-[10px] px-1.5 py-0.5 rounded bg-muted hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors border"
+                      onClick={() => courseForm.setValue("admissionFee", amt, { shouldValidate: true })}
+                    >
+                      {amt === 0 ? "₹0" : `₹${amt.toLocaleString("en-IN")}`}
+                    </button>
+                  ))}
+                </div>
+                {courseForm.formState.errors.admissionFee && (
+                  <p className="text-xs text-destructive">
+                    {courseForm.formState.errors.admissionFee.message}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Price List Breakdown Preview */}
+            {(watchedPrice > 0 || watchedKseb > 0) && (
+              <div className="rounded-lg border bg-muted/20 p-3 text-xs space-y-1.5">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>PRICE (System Base):</span>
+                  <span className="font-mono font-medium text-foreground">
+                    ₹{watchedPrice.toLocaleString("en-IN")}
+                  </span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>KSEB Processing Fee:</span>
+                  <span className="font-mono font-medium text-foreground">
+                    + ₹{watchedKseb.toLocaleString("en-IN")}
+                  </span>
+                </div>
+                <div className="flex justify-between font-bold text-foreground border-t pt-1.5">
+                  <span>GRAND TOTAL (PRICE + KSEB):</span>
+                  <span className="font-mono text-primary text-sm">
+                    ₹{grandTotal.toLocaleString("en-IN")}
+                  </span>
+                </div>
+                {subsidy > 0 && (
+                  <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium border-t border-dashed pt-1">
+                    <span>AFTER SUBSIDY (PRICE - ₹78,000):</span>
+                    <span className="font-mono">
+                      ₹{afterSubsidy.toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label htmlFor="course-description" className="text-xs font-semibold">
+                Description / Specifications
+              </Label>
               <Textarea
                 id="course-description"
+                rows={2}
                 {...courseForm.register("description")}
-                placeholder="Panels, inverter, mounting, and included work"
+                placeholder="e.g., 3 KW On-Grid System with EMMVEE Mono PERC Panels, net metering included"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="course-duration">Warranty / service term</Label>
-              <Input
-                id="course-duration"
-                {...courseForm.register("duration")}
-                placeholder="e.g., 5-year product warranty"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-course-fee">System price</Label>
-              <Input
-                id="edit-course-fee"
-                type="number"
-                step="0.01"
-                {...courseForm.register("courseFee")}
-                placeholder="Enter solar package price"
-              />
-              {courseForm.formState.errors.courseFee && (
-                <p className="text-sm text-destructive">
-                  {courseForm.formState.errors.courseFee.message}
-                </p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-admission-fee">Installation / survey charge</Label>
-              <Input
-                id="edit-admission-fee"
-                type="number"
-                step="0.01"
-                {...courseForm.register("admissionFee")}
-                placeholder="Enter installation or survey charge"
-              />
-              {courseForm.formState.errors.admissionFee && (
-                <p className="text-sm text-destructive">
-                  {courseForm.formState.errors.admissionFee.message}
-                </p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-semester-fee">Maintenance plan price (optional)</Label>
-              <Input
-                id="edit-semester-fee"
-                type="number"
-                step="0.01"
-                {...courseForm.register("semesterFee")}
-                placeholder="Enter maintenance plan price (optional)"
-              />
-              {courseForm.formState.errors.semesterFee && (
-                <p className="text-sm text-destructive">
-                  {courseForm.formState.errors.semesterFee.message}
-                </p>
-              )}
-            </div>
-            <div className="flex justify-end space-x-2">
+
+            <div className="flex justify-end space-x-2 pt-1">
               <Button
                 type="button"
                 variant="outline"
@@ -863,10 +1143,12 @@ export default function DataManagementPage() {
               >
                 Cancel
               </Button>
-              <Button type="submit">Create</Button>
+              <Button type="submit">Create Capacity</Button>
             </div>
           </form>
         );
+      }
+
 
       case "required-service":
         return (
@@ -1050,9 +1332,10 @@ export default function DataManagementPage() {
   return (
     <div className="flex flex-1 flex-col space-y-6 p-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Solar Catalog &amp; Team Setup</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Data Management</h1>
         <p className="text-muted-foreground">
-          Manage solar packages, installation requirements, service regions, lead sources, and team access.
+          Manage system master data: roles, courses, branches, and enquiry
+          sources
         </p>
       </div>
 
@@ -1067,24 +1350,24 @@ export default function DataManagementPage() {
             <span>Roles</span>
           </TabsTrigger>
           <TabsTrigger value="courses" className="flex items-center space-x-2">
-            <BookOpen className="h-4 w-4" />
-            <span>Solar Packages</span>
+            <Zap className="h-4 w-4" />
+            <span>Capacities</span>
           </TabsTrigger>
           <TabsTrigger value="required-services" className="flex items-center space-x-2">
             <BookOpen className="h-4 w-4" />
-            <span>Installation Requirements</span>
+            <span>Required Services</span>
           </TabsTrigger>
           <TabsTrigger value="branches" className="flex items-center space-x-2">
             <MapPin className="h-4 w-4" />
-            <span>Service Regions</span>
+            <span>Branches</span>
           </TabsTrigger>
           <TabsTrigger value="sources" className="flex items-center space-x-2">
             <Database className="h-4 w-4" />
-            <span>Lead Sources</span>
+            <span>Sources</span>
           </TabsTrigger>
           <TabsTrigger value="services" className="flex items-center space-x-2">
             <Wrench className="h-4 w-4" />
-            <span>Solar Services</span>
+            <span>Other Services</span>
           </TabsTrigger>
         </TabsList>
 
@@ -1105,19 +1388,19 @@ export default function DataManagementPage() {
         <TabsContent value="courses">
           <Card>
             <CardHeader>
-              <CardTitle>Solar Packages</CardTitle>
+              <CardTitle>Required Capacities</CardTitle>
               <CardDescription>
-                Manage solar system packages, pricing, and warranty terms. Total: {courses.length}
+                Manage solar system capacities, specifications, and package pricing. Total: {courses.length}
               </CardDescription>
             </CardHeader>
             <CardContent>
               {renderDataTable("course", courses, [
-                "Name",
-                "Description",
-                "Duration",
-                "Course Fee",
-                "Admission Fee",
-                "Semester Fee",
+                "Capacity",
+                "Panel Brand",
+                "Price (₹)",
+                "KSEB (₹)",
+                "Grand Total (₹)",
+                "After Subsidy (₹)",
               ])}
             </CardContent>
           </Card>
@@ -1126,9 +1409,9 @@ export default function DataManagementPage() {
         <TabsContent value="required-services">
           <Card>
             <CardHeader>
-              <CardTitle>Installation Requirements</CardTitle>
+              <CardTitle>Required Services</CardTitle>
               <CardDescription>
-                Manage common installation requirements. Total: {requiredServices.length}
+                Manage available required services and programs. Total: {requiredServices.length}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1142,9 +1425,9 @@ export default function DataManagementPage() {
         <TabsContent value="branches">
           <Card>
             <CardHeader>
-              <CardTitle>Service Regions</CardTitle>
+              <CardTitle>Branches</CardTitle>
               <CardDescription>
-                Manage service regions and office locations. Total:{" "}
+                Manage institute branches and locations. Total:{" "}
                 {branches.length}
               </CardDescription>
             </CardHeader>
@@ -1162,9 +1445,10 @@ export default function DataManagementPage() {
         <TabsContent value="sources">
           <Card>
             <CardHeader>
-              <CardTitle>Lead Sources</CardTitle>
+              <CardTitle>Enquiry Sources</CardTitle>
               <CardDescription>
-                Manage lead sources such as website, referral, and advertising. Total: {sources.length}
+                Manage enquiry sources like website, referral, advertisement,
+                etc. Total: {sources.length}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1175,7 +1459,7 @@ export default function DataManagementPage() {
         <TabsContent value="services">
           <Card>
             <CardHeader>
-              <CardTitle>Solar Services</CardTitle>
+              <CardTitle>Services</CardTitle>
               <CardDescription>
                 Manage additional services and their prices. Total:{" "}
                 {services.length}
@@ -1247,71 +1531,287 @@ export default function DataManagementPage() {
               !open && (setDialogOpen(null), setEditingItem(null))
             }
           >
-            <DialogContent>
+            <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                  <DialogTitle>Edit Solar Package</DialogTitle>
+                <DialogTitle>Edit Capacity</DialogTitle>
                 <DialogDescription>
-                  Update the solar package, pricing, and warranty information.
+                  Update solar capacity, panel brand, system price, and KSEB fee.
                 </DialogDescription>
               </DialogHeader>
               <form
                 onSubmit={courseForm.handleSubmit(handleUpdateCourse)}
                 className="space-y-4"
               >
-                <div className="space-y-2">
-                  <Label htmlFor="edit-course-name">Solar package name</Label>
-                  <Input
-                    id="edit-course-name"
-                    {...courseForm.register("name")}
-                    placeholder="e.g., 5 kW rooftop system"
-                  />
-                  {courseForm.formState.errors.name && (
-                    <p className="text-sm text-destructive">
-                      {courseForm.formState.errors.name.message}
-                    </p>
-                  )}
+                {/* Separate Option Selectors from Solar Price List */}
+                <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <span className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
+                      <Zap className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
+                      Solar Price List (Select Separately)
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-6 text-[11px] px-2 text-muted-foreground hover:text-foreground"
+                      onClick={() => {
+                        courseForm.setValue("name", "", { shouldValidate: false });
+                        courseForm.setValue("duration", "", { shouldValidate: false });
+                        courseForm.setValue("courseFee", 0, { shouldValidate: false });
+                        courseForm.setValue("admissionFee", 0, { shouldValidate: false });
+                        courseForm.setValue("semesterFee", 0, { shouldValidate: false });
+                        courseForm.setValue("description", "", { shouldValidate: false });
+                      }}
+                    >
+                      <RotateCcw className="h-3 w-3 mr-1" />
+                      Clear / Manual Re-enter
+                    </Button>
+                  </div>
+
+                  {/* 1. Capacity Option (Separate) */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-medium text-muted-foreground">
+                        1. Select Capacity:
+                      </span>
+                      {courseForm.watch("name") && (
+                        <span className="text-[10px] text-primary font-medium">
+                          Current: {courseForm.watch("name")}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {SOLAR_CAPACITIES.map((cap) => {
+                        const isSelected = courseForm.watch("name") === cap;
+                        return (
+                          <Button
+                            key={cap}
+                            type="button"
+                            variant={isSelected ? "default" : "outline"}
+                            size="sm"
+                            className={`h-7 text-xs px-3 transition-all ${
+                              isSelected
+                                ? "bg-primary text-primary-foreground font-semibold shadow-sm"
+                                : "border-border/80 hover:border-primary hover:bg-primary/5"
+                            }`}
+                            onClick={() => {
+                              courseForm.setValue("name", cap, { shouldValidate: true });
+                              const brand = (courseForm.getValues("duration") || "").toUpperCase();
+                              if (brand && SOLAR_RATES[cap]?.[brand]) {
+                                const rate = SOLAR_RATES[cap][brand];
+                                courseForm.setValue("courseFee", rate.price, { shouldValidate: true });
+                                courseForm.setValue("admissionFee", rate.kseb, { shouldValidate: true });
+                              }
+                            }}
+                          >
+                            {cap}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 2. Solar Panel Brand Option (Separate) */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-medium text-muted-foreground">
+                        2. Select Solar Panel Brand:
+                      </span>
+                      {courseForm.watch("duration") && (
+                        <span className="text-[10px] text-primary font-medium">
+                          Current: {courseForm.watch("duration")}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {SOLAR_PANEL_BRANDS.map((brand) => {
+                        const isSelected = (courseForm.watch("duration") || "").toUpperCase() === brand;
+                        return (
+                          <Button
+                            key={brand}
+                            type="button"
+                            variant={isSelected ? "default" : "outline"}
+                            size="sm"
+                            className={`h-7 text-xs px-3 transition-all ${
+                              isSelected
+                                ? "bg-primary text-primary-foreground font-semibold shadow-sm"
+                                : "border-border/80 hover:border-primary hover:bg-primary/5"
+                            }`}
+                            onClick={() => {
+                              courseForm.setValue("duration", brand, { shouldValidate: true });
+                              const cap = courseForm.getValues("name") || "";
+                              if (cap && SOLAR_RATES[cap]?.[brand]) {
+                                const rate = SOLAR_RATES[cap][brand];
+                                courseForm.setValue("courseFee", rate.price, { shouldValidate: true });
+                                courseForm.setValue("admissionFee", rate.kseb, { shouldValidate: true });
+                              }
+                            }}
+                          >
+                            {brand}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-course-description">Package details</Label>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="edit-course-name" className="text-xs font-semibold">
+                        Capacity / System Size *
+                      </Label>
+                      <span className="text-[10px] text-muted-foreground">Type or select above</span>
+                    </div>
+                    <Input
+                      id="edit-course-name"
+                      {...courseForm.register("name")}
+                      placeholder="e.g., 3 KW (or 5 KW, 3+5 KW)"
+                    />
+                    {courseForm.formState.errors.name && (
+                      <p className="text-xs text-destructive">
+                        {courseForm.formState.errors.name.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="edit-course-duration" className="text-xs font-semibold">
+                        Solar Panel Brand
+                      </Label>
+                      <span className="text-[10px] text-muted-foreground">Type or select above</span>
+                    </div>
+                    <Input
+                      id="edit-course-duration"
+                      {...courseForm.register("duration")}
+                      placeholder="e.g., EMMVEE, ADANI, WAREE"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="edit-course-fee" className="text-xs font-semibold">
+                        System Price (₹) *
+                      </Label>
+                      <span className="text-[10px] text-muted-foreground">Manually re-enter anytime</span>
+                    </div>
+                    <Input
+                      id="edit-course-fee"
+                      type="number"
+                      step="1"
+                      {...courseForm.register("courseFee")}
+                      placeholder="e.g., 210000 (3 KW) or 310000 (5 KW)"
+                    />
+                    <div className="flex flex-wrap gap-1 pt-0.5">
+                      {[210000, 217000, 310000, 320000, 235000, 242000].map((amt) => (
+                        <button
+                          key={amt}
+                          type="button"
+                          className="text-[10px] px-1.5 py-0.5 rounded bg-muted hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors border"
+                          onClick={() => courseForm.setValue("courseFee", amt, { shouldValidate: true })}
+                        >
+                          ₹{(amt / 1000).toFixed(0)}k
+                        </button>
+                      ))}
+                    </div>
+                    {courseForm.formState.errors.courseFee && (
+                      <p className="text-xs text-destructive">
+                        {courseForm.formState.errors.courseFee.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="edit-admission-fee" className="text-xs font-semibold">
+                        KSEB Fee (₹)
+                      </Label>
+                      <span className="text-[10px] text-muted-foreground">Manually re-enter anytime</span>
+                    </div>
+                    <Input
+                      id="edit-admission-fee"
+                      type="number"
+                      step="1"
+                      {...courseForm.register("admissionFee")}
+                      placeholder="e.g., 4500 (3 KW) or 5500 (5 KW)"
+                    />
+                    <div className="flex flex-wrap gap-1 pt-0.5">
+                      {[4500, 5500, 0].map((amt) => (
+                        <button
+                          key={amt}
+                          type="button"
+                          className="text-[10px] px-1.5 py-0.5 rounded bg-muted hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors border"
+                          onClick={() => courseForm.setValue("admissionFee", amt, { shouldValidate: true })}
+                        >
+                          {amt === 0 ? "₹0" : `₹${amt.toLocaleString("en-IN")}`}
+                        </button>
+                      ))}
+                    </div>
+                    {courseForm.formState.errors.admissionFee && (
+                      <p className="text-xs text-destructive">
+                        {courseForm.formState.errors.admissionFee.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Price List Breakdown Preview */}
+                {(() => {
+                  const editPrice = Number(courseForm.watch("courseFee") || 0);
+                  const editKseb = Number(courseForm.watch("admissionFee") || 0);
+                  const grandTotal = editPrice + editKseb;
+                  const is3Plus5 = String(courseForm.watch("name") || "").includes("3+5");
+                  const subsidy = !is3Plus5 && editPrice >= 150000 ? 78000 : 0;
+                  const afterSubsidy = editPrice > 0 ? editPrice - subsidy : 0;
+
+                  return (
+                    (editPrice > 0 || editKseb > 0) && (
+                      <div className="rounded-lg border bg-muted/20 p-3 text-xs space-y-1.5">
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>PRICE (System Base):</span>
+                          <span className="font-mono font-medium text-foreground">
+                            ₹{editPrice.toLocaleString("en-IN")}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>KSEB Processing Fee:</span>
+                          <span className="font-mono font-medium text-foreground">
+                            + ₹{editKseb.toLocaleString("en-IN")}
+                          </span>
+                        </div>
+                        <div className="flex justify-between font-bold text-foreground border-t pt-1.5">
+                          <span>GRAND TOTAL (PRICE + KSEB):</span>
+                          <span className="font-mono text-primary text-sm">
+                            ₹{grandTotal.toLocaleString("en-IN")}
+                          </span>
+                        </div>
+                        {subsidy > 0 && (
+                          <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium border-t border-dashed pt-1">
+                            <span>AFTER SUBSIDY (PRICE - ₹78,000):</span>
+                            <span className="font-mono">
+                              ₹{afterSubsidy.toLocaleString("en-IN")}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  );
+                })()}
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-course-description" className="text-xs font-semibold">
+                    Description / Specifications
+                  </Label>
                   <Textarea
                     id="edit-course-description"
+                    rows={2}
                     {...courseForm.register("description")}
-                    placeholder="Panels, inverter, mounting, and included work"
+                    placeholder="Enter specifications or system details"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-course-duration">Warranty / service term</Label>
-                  <Input
-                    id="edit-course-duration"
-                    {...courseForm.register("duration")}
-                    placeholder="e.g., 5-year product warranty"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="Course Fee">System price</Label>
-                  <Input
-                    id="edit-course-fee"
-                    {...courseForm.register("courseFee")}
-                    placeholder="Enter solar package price"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="Admission Fee">Installation / survey charge</Label>
-                  <Input
-                    id="edit-admission-fee"
-                    {...courseForm.register("admissionFee")}
-                    placeholder="Enter installation or survey charge"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="Semester Fee">Maintenance plan price</Label>
-                  <Input
-                    id="edit-semester-fee"
-                    {...courseForm.register("semesterFee")}
-                    placeholder="Enter maintenance plan price"
-                  />
-                </div>
-                <div className="flex justify-end space-x-2">
+
+                <div className="flex justify-end space-x-2 pt-1">
                   <Button
                     type="button"
                     variant="outline"
@@ -1319,7 +1819,7 @@ export default function DataManagementPage() {
                   >
                     Cancel
                   </Button>
-                  <Button type="submit">Update</Button>
+                  <Button type="submit">Update Capacity</Button>
                 </div>
               </form>
             </DialogContent>

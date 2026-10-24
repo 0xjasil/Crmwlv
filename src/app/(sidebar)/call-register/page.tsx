@@ -156,8 +156,8 @@ export default function CallRegisterPage() {
     <PageContainer>
       {/* Header */}
       <PageHeader
-        title="Sales Call Log"
-        description="Review customer conversations and sales activity across your solar pipeline."
+        title="Call Register"
+        description="Comprehensive log and analytics of telecaller and admissions phone interactions."
         actions={
           <Button
             onClick={loadCallLogs}
@@ -231,7 +231,7 @@ export default function CallRegisterPage() {
         <div className="relative w-full sm:flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search contact, phone number, or sales rep..."
+            placeholder="Search by candidate name, phone number, or telecaller..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-9 h-9 text-xs bg-background"
@@ -311,9 +311,9 @@ export default function CallRegisterPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[160px]">Timestamp</TableHead>
-                    <TableHead>Contact / Business</TableHead>
+                    <TableHead>Candidate</TableHead>
                     <TableHead>Phone</TableHead>
-                    <TableHead>Sales Rep</TableHead>
+                    <TableHead>Telecaller</TableHead>
                     <TableHead>Outcome</TableHead>
                     <TableHead className="w-[100px]">Duration</TableHead>
                     <TableHead>Notes</TableHead>

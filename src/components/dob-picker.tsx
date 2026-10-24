@@ -13,12 +13,16 @@ interface DateOfBirthPickerProps
   > {
   value: Date | undefined;
   onChange: (date: Date | undefined) => void;
+  placeholder?: string;
+  id?: string;
 }
 
 export const DateOfBirthPicker: FC<DateOfBirthPickerProps> = ({
   value,
   onChange,
   className,
+  placeholder = "Select date",
+  id = "date-of-birth",
   ...props
 }) => {
   const [open, setOpen] = useState(false);
@@ -28,14 +32,14 @@ export const DateOfBirthPicker: FC<DateOfBirthPickerProps> = ({
       <PopoverTrigger asChild>
         <Button
           variant="outline"
-          id="date-of-birth"
+          id={id}
           className={cn(
             "w-full justify-between font-normal",
             !value && "text-muted-foreground",
             className
           )}
         >
-          {value ? format(value, "PPP") : "Select date"}
+          {value ? format(value, "PPP") : placeholder}
           <CalendarIcon className="ml-auto size-4 opacity-50" />
         </Button>
       </PopoverTrigger>

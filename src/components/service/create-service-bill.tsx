@@ -51,7 +51,7 @@ interface Service {
 // NOTE: We need to define the schema without the total/paid validation first,
 // and then refine the whole object in the component because 'total' depends on state.
 const serviceBillSchema = z.object({
- admissionId: z.string().min(1, "Customer selection is required"),
+ admissionId: z.string().min(1, "Student selection is required"),
  serviceIds: z
   .array(z.string())
   .min(1, "At least one service must be selected"),
@@ -225,7 +225,7 @@ export default function CreateServiceBillModal({
     <DialogHeader>
      <DialogTitle>Create Service Bill</DialogTitle>
      <DialogDescription>
-      Create a new solar installation or maintenance job for a customer
+      Create a new service bill for a student with selected services
      </DialogDescription>
     </DialogHeader>
 
@@ -233,9 +233,9 @@ export default function CreateServiceBillModal({
      onSubmit={serviceBillForm.handleSubmit(handleCreateServiceBill)}
      className="space-y-6"
     >
-     {/* Customer selection */}
+     {/* Student Selection */}
      <div className="space-y-2">
-      <Label htmlFor="student-select">Select Customer / Project</Label>
+      <Label htmlFor="student-select">Select Student</Label>
       <Select
        value={serviceBillForm.watch("admissionId")}
        onValueChange={(value) =>
@@ -243,12 +243,12 @@ export default function CreateServiceBillModal({
        }
       >
        <SelectTrigger>
-        <SelectValue placeholder="Choose a customer or project" />
+        <SelectValue placeholder="Choose a student" />
        </SelectTrigger>
        <SelectContent>
         {students.length === 0 ? (
          <SelectItem value="none" disabled>
-          Loading customers...
+          Loading students...
          </SelectItem>
         ) : (
          students.map((student) => (
@@ -307,7 +307,7 @@ export default function CreateServiceBillModal({
 
      {/* Services Selection */}
      <div className="space-y-2">
-      <Label>Select Solar Services</Label>
+      <Label>Select Services</Label>
       <div className="border rounded-md p-4 max-h-60 overflow-y-auto space-y-3">
        {services.length === 0 ? (
         <p className="text-sm text-muted-foreground">

@@ -81,7 +81,7 @@ export default async function Dashboard() {
         badge={
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="font-semibold uppercase tracking-wider text-[10px]">
-              {({ telecaller: 'SALES REP', executive: 'SALES EXECUTIVE', manager: 'MANAGER', admin: 'ADMIN' } as Record<string, string>)[session.user.role || ''] || session.user.role?.toUpperCase() || 'SALES REP'}
+              {session.user.role?.toUpperCase() || 'TELECALLER'}
             </Badge>
             {session.user.role === 'executive' && session.user.branch && (
               <Badge variant="outline" className="text-[11px]">
@@ -101,7 +101,7 @@ export default async function Dashboard() {
             <Button size="sm" asChild>
               <Link href="/enquiries">
                 <IconUsers className="mr-1.5 h-4 w-4" />
-                View Leads
+                View Enquiries
               </Link>
             </Button>
           </>
@@ -111,23 +111,23 @@ export default async function Dashboard() {
       {/* Primary KPI Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Total Leads"
+          title="Total Enquiries"
           value={stats.totalEnquiries}
-          description="All captured solar prospects"
+          description="All captured lead records"
           icon={<IconUsers className="size-5 text-blue-600 dark:text-blue-400" />}
           href="/enquiries"
         />
         <KpiCard
-          title="New Leads"
+          title="New Enquiries"
           value={stats.newEnquiries}
-          description="Fresh prospects to qualify"
+          description="Unassigned & fresh leads"
           icon={<IconUserPlus className="size-5 text-emerald-600 dark:text-emerald-400" />}
           href="/enquiries"
         />
         <KpiCard
           title="Pending Follow-ups"
           value={stats.pendingFollowUps}
-          description="Awaiting sales team action"
+          description="Awaiting telecaller action"
           icon={<IconClock className="size-5 text-amber-600 dark:text-amber-400" />}
           href="/follow-ups"
         />
@@ -239,13 +239,13 @@ export default async function Dashboard() {
                 className="h-8 border-emerald-200 bg-card hover:bg-emerald-100/80 dark:border-emerald-800"
                 asChild
               >
-                <Link href="/enquiries">
+                <Link href="/my-enquiries?status=interested">
                   View Queue <IconArrowRight className="ml-1 size-3.5" />
                 </Link>
               </Button>
             </div>
             <p className="text-xs text-emerald-700/80 dark:text-emerald-400/80 mt-2 font-medium">
-                  Ready for a quote or site survey
+              Ready for enrollment conversion
             </p>
           </CardContent>
         </Card>
@@ -269,7 +269,7 @@ export default async function Dashboard() {
                   <IconUserPlus className="size-4.5" />
                 </div>
                 <div>
-                  <p className="font-semibold text-sm">New Leads</p>
+                  <p className="font-semibold text-sm">New Enquiries</p>
                   <p className="text-xs text-muted-foreground">
                     {recentActivity.newEnquiries.count} new leads captured this week
                   </p>
@@ -299,9 +299,9 @@ export default async function Dashboard() {
                   <IconUserCheck className="size-4.5" />
                 </div>
                 <div>
-                  <p className="font-semibold text-sm">Lead Conversions</p>
+                  <p className="font-semibold text-sm">Enrollments</p>
                   <p className="text-xs text-muted-foreground">
-                    {recentActivity.enrollments.count} leads moved into active projects
+                    {recentActivity.enrollments.count} successful conversions
                   </p>
                 </div>
               </div>
@@ -320,9 +320,9 @@ export default async function Dashboard() {
             {session.user.role === 'telecaller' ? (
               <>
                 <Button variant="ghost" className="w-full justify-start h-9 rounded-lg hover:bg-muted text-sm font-medium" asChild>
-                  <Link href="/enquiries">
+                  <Link href="/my-enquiries">
                     <IconEye className="mr-2.5 size-4 text-muted-foreground" />
-                    View My Leads
+                    View My Enquiries
                   </Link>
                 </Button>
                 <Button variant="ghost" className="w-full justify-start h-9 rounded-lg hover:bg-muted text-sm font-medium" asChild>
@@ -349,25 +349,25 @@ export default async function Dashboard() {
                 <Button variant="ghost" className="w-full justify-start h-9 rounded-lg hover:bg-muted text-sm font-medium" asChild>
                   <Link href="/enquiries">
                     <IconEye className="mr-2.5 size-4 text-muted-foreground" />
-                    View All Leads
+                    View All Enquiries
                   </Link>
                 </Button>
                 <Button variant="ghost" className="w-full justify-start h-9 rounded-lg hover:bg-muted text-sm font-medium" asChild>
                   <Link href="/follow-ups">
                     <IconCalendarClock className="mr-2.5 size-4 text-muted-foreground" />
-                    Sales Follow-ups
+                    Follow-ups Manager
                   </Link>
                 </Button>
                 <Button variant="ghost" className="w-full justify-start h-9 rounded-lg hover:bg-muted text-sm font-medium" asChild>
-                  <Link href="/customers">
+                  <Link href="/admissions">
                     <IconUserCheck className="mr-2.5 size-4 text-muted-foreground" />
-                    Customer Directory
+                    Admissions & Receipts
                   </Link>
                 </Button>
                 <Button variant="ghost" className="w-full justify-start h-9 rounded-lg hover:bg-muted text-sm font-medium" asChild>
                   <Link href="/reports">
                     <IconTrendingUp className="mr-2.5 size-4 text-muted-foreground" />
-                    Solar Performance Reports
+                    Analytics & Reports
                   </Link>
                 </Button>
                 <Button variant="ghost" className="w-full justify-start h-9 rounded-lg hover:bg-muted text-sm font-medium" asChild>
@@ -385,8 +385,8 @@ export default async function Dashboard() {
       {/* Performance Summary Metrics */}
       <Card className="border border-border/80 shadow-xs">
         <CardHeader className="pb-4">
-          <CardTitle className="text-base font-semibold">Sales Pipeline Performance</CardTitle>
-          <CardDescription className="text-xs">Lead movement and team activity</CardDescription>
+          <CardTitle className="text-base font-semibold">Conversion & Performance Summary</CardTitle>
+          <CardDescription className="text-xs">Live conversion rates and aggregate engagement</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -394,28 +394,28 @@ export default async function Dashboard() {
               <div className="text-2xl sm:text-3xl font-bold tracking-tight text-blue-600 dark:text-blue-400">
                 {performanceMetrics.totalEnquiries}
               </div>
-              <p className="text-xs text-muted-foreground mt-1 font-medium">Assigned Leads</p>
+              <p className="text-xs text-muted-foreground mt-1 font-medium">Assigned Enquiries</p>
             </div>
 
             <div className="p-4 rounded-xl bg-muted/40 border border-border/60 text-center">
               <div className="text-2xl sm:text-3xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
                 {performanceMetrics.interestRate}%
               </div>
-              <p className="text-xs text-muted-foreground mt-1 font-medium">Lead Interest Rate</p>
+              <p className="text-xs text-muted-foreground mt-1 font-medium">Interest Rate</p>
             </div>
 
             <div className="p-4 rounded-xl bg-muted/40 border border-border/60 text-center">
               <div className="text-2xl sm:text-3xl font-bold tracking-tight text-amber-600 dark:text-amber-400">
                 {performanceMetrics.conversionRate}%
               </div>
-              <p className="text-xs text-muted-foreground mt-1 font-medium">Project Conversion Rate</p>
+              <p className="text-xs text-muted-foreground mt-1 font-medium">Conversion Rate</p>
             </div>
 
             <div className="p-4 rounded-xl bg-muted/40 border border-border/60 text-center">
               <div className="text-2xl sm:text-3xl font-bold tracking-tight text-purple-600 dark:text-purple-400">
                 {performanceMetrics.totalCalls}
               </div>
-              <p className="text-xs text-muted-foreground mt-1 font-medium">Sales Calls Logged</p>
+              <p className="text-xs text-muted-foreground mt-1 font-medium">Total Calls Logged</p>
             </div>
           </div>
         </CardContent>

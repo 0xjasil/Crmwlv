@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   IconUsers,
   IconBuilding,
+  IconCash,
   IconReceipt,
   IconChartBar,
   IconTrendingUp,
@@ -41,13 +42,13 @@ export default async function ReportsPage() {
   const allReports = [
     {
       id: 'telecaller',
-      title: 'Sales Team Performance',
+      title: 'Telecaller Performance',
       description:
-        'Sales rep call activity, lead conversion rates, and monthly pipeline productivity.',
+        'Individual telecaller call metrics, lead conversion rates, and monthly productivity KPIs.',
       icon: IconUsers,
       href: '/reports/telecaller',
       features: [
-        'Sales Rep Metrics',
+        'Performance Metrics',
         'Conversion Analysis',
         'Call Statistics',
         'Follow-up Tracking',
@@ -56,16 +57,31 @@ export default async function ReportsPage() {
     },
     {
       id: 'branch',
-      title: 'Service Region Analytics',
+      title: 'Branch Analytics',
       description:
-        'Regional performance, lead distribution, and service coverage.',
+        'Cross-branch performance benchmarking, regional lead distribution, and center volume.',
       icon: IconBuilding,
       href: '/reports/branch',
       features: [
-        'Region Comparison',
+        'Branch Comparison',
         'Regional Performance',
-        'Lead Distribution',
+        'Enquiry Distribution',
         'Revenue Analysis',
+      ],
+      accessRoles: ['admin', 'executive'],
+    },
+    {
+      id: 'admission-payment',
+      title: 'Admission Payments',
+      description:
+        'Student course fee collection status, payment method breakdown, and outstanding balance tracking.',
+      icon: IconCash,
+      href: '/reports/admission-payment',
+      features: [
+        'Course Fee Tracking',
+        'Outstanding Balances',
+        'Collection Reports',
+        'Payment History',
       ],
       accessRoles: ['admin', 'executive'],
     },
@@ -103,7 +119,7 @@ export default async function ReportsPage() {
       id: 'pending-payment',
       title: 'Pending Payments',
       description:
-        'Actionable list of overdue customer invoices and unpaid service jobs.',
+        'Actionable ledger of overdue student installments and unpaid client service bills.',
       icon: IconAlertTriangle,
       href: '/reports/pending-payment',
       features: [
@@ -121,8 +137,8 @@ export default async function ReportsPage() {
   return (
     <PageContainer>
       <PageHeader
-        title="Solar Business Reports"
-        description="Track sales pipeline performance, project activity, service work, and financial results."
+        title="Reports & Intelligence"
+        description="Comprehensive operational analytics, telecaller benchmarks, and financial metrics."
       />
 
       {/* Key Metrics Overview */}

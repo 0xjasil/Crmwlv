@@ -240,8 +240,8 @@ export default function FollowUpsPage() {
     <PageContainer>
       {/* Header */}
       <PageHeader
-        title="Sales Follow-ups"
-        description="Keep solar prospects moving with scheduled calls, site-survey reminders, and next steps."
+        title="Follow-ups"
+        description="Track and manage scheduled calls, overdue reminders, and customer re-engagements"
       />
 
       {/* Filters Toolbar */}
@@ -251,7 +251,7 @@ export default function FollowUpsPage() {
             <div className="relative flex-1 w-full">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search contact, business, or phone..."
+                placeholder="Search by candidate name or phone..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-8.5 h-9 text-sm"
@@ -321,7 +321,7 @@ export default function FollowUpsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Contact / Business</TableHead>
+                      <TableHead>Candidate</TableHead>
                       <TableHead>Phone</TableHead>
                       <TableHead>Scheduled Window</TableHead>
                       <TableHead>Status</TableHead>
@@ -408,7 +408,7 @@ export default function FollowUpsPage() {
           {selectedFollowUp && (
             <form onSubmit={updateForm.handleSubmit(handleUpdateFollowUp)} className="space-y-4">
               <div className="space-y-2">
-                <Label>Contact / Business</Label>
+                <Label>Candidate</Label>
                 <p className="text-sm text-muted-foreground">
                   {selectedFollowUp.enquiry.candidateName} - {selectedFollowUp.enquiry.phone}
                 </p>

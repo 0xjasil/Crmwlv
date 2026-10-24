@@ -36,6 +36,9 @@ import {
   Phone,
   Mail,
   MapPin,
+  GraduationCap,
+  Building,
+  Calendar as CalendarIcon,
   CreditCard,
   AlertCircle,
   Receipt,
@@ -160,6 +163,12 @@ const formatDate = (date: Date | string) => {
     month: "long",
     day: "numeric",
   });
+};
+
+const AdmissionGenderLabels: Record<string, string> = {
+  MALE: "Male",
+  FEMALE: "Female",
+  OTHER: "Other",
 };
 
 function ServicePage() {
@@ -541,28 +550,28 @@ function ServicePage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Main Details */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Customer and project information */}
+          {/* Student Information */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <User className="h-5 w-5" />
-                Customer & Project
+                Student Information
               </CardTitle>
               <CardDescription>
-                Customer contact and solar package details for this job.
+                Details of the student for this service bill
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">
-                    Customer / Business
+                    Student Name
                   </label>
                   <p className="font-medium">{admission.candidateName}</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">
-                    Project Reference
+                    Admission Number
                   </label>
                   <p className="font-medium font-mono text-sm">
                     {admission.admissionNumber}
@@ -570,7 +579,7 @@ function ServicePage() {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">
-                      Phone
+                    Mobile Number
                   </label>
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4 text-muted-foreground" />
@@ -588,6 +597,30 @@ function ServicePage() {
                     </div>
                   </div>
                 )}
+                {admission.gender && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Gender
+                    </label>
+                    <p className="font-medium">
+                      {AdmissionGenderLabels[admission.gender] ||
+                        admission.gender}
+                    </p>
+                  </div>
+                )}
+                {admission.dateOfBirth && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Date of Birth
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                      <p className="font-medium">
+                        {formatDate(admission.dateOfBirth)}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
               <Separator />
               <div>
@@ -601,10 +634,10 @@ function ServicePage() {
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">
-                  Solar Package
+                  Course
                 </label>
                 <div className="flex items-center gap-2 mt-1">
-                  <Package className="h-4 w-4 text-muted-foreground" />
+                  <GraduationCap className="h-4 w-4 text-muted-foreground" />
                   <p className="font-medium">{admission.course.name}</p>
                 </div>
               </div>
@@ -894,20 +927,71 @@ function ServicePage() {
             </CardContent>
           </Card>
 
-          {/* Project notes */}
-          {admission.additionalNotes && (
+          {/* Education Information */}
+          {(admission.lastQualification || admission.instituteName) && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Project Notes
+                  <GraduationCap className="h-5 w-5" />
+                  Education Details
                 </CardTitle>
                 <CardDescription>
-                  Notes saved with this customer project.
+                  Academic background and qualifications
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <p className="whitespace-pre-wrap text-sm">{admission.additionalNotes}</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {admission.lastQualification && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">
+                        Last Qualification
+                      </label>
+                      <p className="font-medium">
+                        {admission.lastQualification}
+                      </p>
+                    </div>
+                  )}
+                  {admission.yearOfPassing && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">
+                        Year of Passing
+                      </label>
+                      <p className="font-medium">{admission.yearOfPassing}</p>
+                    </div>
+                  )}
+                  {admission.percentageCGPA && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">
+                        Percentage/CGPA
+                      </label>
+                      <p className="font-medium">{admission.percentageCGPA}</p>
+                    </div>
+                  )}
+                  {admission.instituteName && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">
+                        Institute Name
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <Building className="h-4 w-4 text-muted-foreground" />
+                        <p className="font-medium">{admission.instituteName}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {admission.additionalNotes && (
+                  <>
+                    <Separator />
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">
+                        Additional Notes
+                      </label>
+                      <p className="font-medium mt-1">
+                        {admission.additionalNotes}
+                      </p>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           )}
@@ -1001,7 +1085,7 @@ function ServicePage() {
                     <div className="flex items-center gap-2">
                       <AlertCircle className="h-4 w-4 text-red-600" />
                       <span className="text-sm font-medium text-red-700">
-                        Customer Balance
+                        Student Balance
                       </span>
                     </div>
                     <Badge variant="destructive" className="font-semibold">
@@ -1027,10 +1111,10 @@ function ServicePage() {
 
               <Separator />
 
-              <Link href="/customers">
+              <Link href={`/admissions/${admission.id}`}>
                 <Button className="w-full" variant="outline">
                   <User className="mr-2 h-4 w-4" />
-                  View Customer Directory
+                  View Student Details
                 </Button>
               </Link>
             </CardContent>

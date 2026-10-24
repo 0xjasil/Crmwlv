@@ -30,13 +30,13 @@ export const SIDEBAR_DATA: SidebarData = {
       icon: IconDashboard,
     },
     {
-      title: 'Leads',
+      title: 'Enquiries',
       url: '/enquiries',
       icon: IconUsers,
     },
     {
-      title: 'Installations',
-      url: '/enquiries/job-orders',
+      title: 'Job Orders',
+      url: '#',
       icon: IconBriefcase,
       isActive: false,
       items: [
@@ -51,27 +51,27 @@ export const SIDEBAR_DATA: SidebarData = {
       ],
     },
     {
-      title: 'Sales Follow-ups',
+      title: 'Follow-ups',
       url: '/follow-ups',
       icon: IconListDetails,
     },
     {
-      title: 'Sales Calls',
+      title: 'Call Register',
       url: '/call-register',
       icon: IconPhoneCall,
     },
     {
-      title: 'Customers',
-      url: '/customers',
-      icon: IconUsers,
+      title: 'Site Surveys & Projects',
+      url: '/admissions',
+      icon: IconSun,
     },
     {
-      title: 'Service Jobs',
+      title: 'Service Billing',
       url: '/services',
       icon: IconFileDollar,
     },
     {
-      title: 'Quotes & Proposals',
+      title: 'Proposals',
       url: '/proposals',
       icon: IconFileText,
     },
@@ -83,7 +83,7 @@ export const SIDEBAR_DATA: SidebarData = {
       icon: IconChartBar,
     },
     {
-      title: 'Solar Catalog & Setup',
+      title: 'Data Management',
       url: '/admin/data-management',
       icon: IconDatabase,
     },

@@ -229,10 +229,11 @@ export function TelecallerReportContent({
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">
-            Solar Sales Team Report
+            Telecaller Performance Report
           </h1>
           <p className="text-muted-foreground">
-            Sales activity, lead conversion, and follow-up performance for your solar team.
+            Comprehensive analytics and insights for telecaller performance and
+            productivity
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -261,7 +262,7 @@ export function TelecallerReportContent({
         <CardContent>
           <div className="flex flex-wrap items-end gap-4">
             <div className="space-y-2 w-full sm:w-[240px]">
-              <label className="text-sm font-medium">Search sales rep</label>
+              <label className="text-sm font-medium">Search Telecaller</label>
               <div className="relative">
                 <IconSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -295,13 +296,16 @@ export function TelecallerReportContent({
             </div>
 
             <div className="space-y-2 w-full sm:w-[200px]">
-              <label className="text-sm font-medium">Service region</label>
+              <label className="text-sm font-medium">Branch</label>
               <Select value={selectedBranch} onValueChange={setSelectedBranch}>
                 <SelectTrigger>
-                  <SelectValue placeholder="All service regions" />
+                  <SelectValue placeholder="All branches" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All service regions</SelectItem>
+                  <SelectItem value="all">All branches</SelectItem>
+                  <SelectItem value="branch1">Main Branch</SelectItem>
+                  <SelectItem value="branch2">North Branch</SelectItem>
+                  <SelectItem value="branch3">South Branch</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -348,7 +352,7 @@ export function TelecallerReportContent({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardDescription>Sales Reps</CardDescription>
+            <CardDescription>Total Telecallers</CardDescription>
             <IconUsers className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -372,7 +376,7 @@ export function TelecallerReportContent({
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Across the sales team
+              Across all telecallers
             </p>
           </CardContent>
         </Card>
@@ -430,7 +434,7 @@ export function TelecallerReportContent({
             <CardHeader>
               <CardTitle>Individual Performance Metrics</CardTitle>
               <CardDescription>
-                Detailed performance analysis for each sales rep
+                Detailed performance analysis for each telecaller
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -574,7 +578,7 @@ export function TelecallerReportContent({
             <CardHeader>
               <CardTitle>Enquiry Status Distribution</CardTitle>
               <CardDescription>
-                Breakdown of lead statuses by sales rep
+                Breakdown of enquiry statuses by telecaller
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -618,7 +622,7 @@ export function TelecallerReportContent({
                         <div className="text-2xl font-bold text-emerald-600">
                           {stats.enrolledEnquiries}
                         </div>
-                        <p className="text-sm text-emerald-700">Converted</p>
+                        <p className="text-sm text-emerald-700">Enrolled</p>
                       </div>
                       <div className="text-center p-4 rounded-lg bg-red-50 border border-red-200">
                         <div className="text-2xl font-bold text-red-600">
@@ -640,7 +644,7 @@ export function TelecallerReportContent({
             <CardHeader>
               <CardTitle>Detailed Performance Table</CardTitle>
               <CardDescription>
-                Comprehensive view of solar sales activity in tabular format
+                Comprehensive view of all telecaller metrics in tabular format
               </CardDescription>
             </CardHeader>
             <CardContent>

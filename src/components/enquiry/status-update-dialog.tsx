@@ -120,7 +120,7 @@ export function StatusUpdateDialog({
       case EnquiryStatus.FOLLOW_UP:
         return 'Follow Up';
       case EnquiryStatus.ENROLLED:
-        return 'Converted';
+        return 'Enrolled';
       case EnquiryStatus.DROPPED:
         return 'Dropped';
       case EnquiryStatus.INVALID:
@@ -254,10 +254,10 @@ export function StatusUpdateDialog({
                       </FormControl>
                       <div className="space-y-1 leading-none">
                         <FormLabel>
-                          Quick Lead Conversion
+                          Direct Enrollment
                         </FormLabel>
                         <p className="text-sm text-muted-foreground">
-                          Mark this prospect as converted without opening a customer record first.
+                          Check this if the candidate enrolled directly without going through the admission form process.
                         </p>
                       </div>
                     </FormItem>
@@ -278,7 +278,7 @@ export function StatusUpdateDialog({
                         {...field}
                         placeholder={
                           watchedDirectEnrollment
-                            ? "Add notes about this lead conversion..."
+                            ? "Add any notes about the direct enrollment..."
                             : "Add any remarks about this status change..."
                         }
                         className="min-h-[80px]"
@@ -303,12 +303,12 @@ export function StatusUpdateDialog({
                 {isExecuting ? (
                   <>
                     <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-white" />
-                    {watchedDirectEnrollment ? 'Updating conversion...' : 'Updating status...'}
+                    {watchedDirectEnrollment ? 'Processing Direct Enrollment...' : 'Updating Status...'}
                   </>
                 ) : (
                   <>
                     <Edit2 className="mr-2 h-4 w-4" />
-                    {watchedDirectEnrollment ? 'Mark as Converted' : 'Update Status'}
+                    {watchedDirectEnrollment ? 'Complete Direct Enrollment' : 'Update Status'}
                   </>
                 )}
               </Button>

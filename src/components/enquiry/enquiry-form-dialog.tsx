@@ -41,6 +41,7 @@ import {
   updateEnquiry,
   getBranches,
   getCourses,
+  getEnquirySources,
   getRequiredServices,
   getUsers,
 } from "@/server/actions/enquiry-action";
@@ -49,13 +50,39 @@ import {
   Branch,
   Course,
   RequiredService,
+  EnquirySource,
 } from "@/types/data-management";
 import { authClient } from "@/lib/auth-client";
+
+// Helper functions for parsing and packaging KSEB bill & District/Panchayat
+function extractKsebBill(notes?: string | null) {
+  if (!notes) return { ksebBill: "", cleanNotes: "" };
+  const match = notes.match(/\[(?:Avg\.\s*)?KSEB Bill:\s*([^\]]+)\]/i);
+  if (match) {
+    const ksebBill = match[1].trim();
+    const cleanNotes = notes.replace(/\[(?:Avg\.\s*)?KSEB Bill:[^\]]*\]\s*/i, "").trim();
+    return { ksebBill, cleanNotes };
+  }
+  return { ksebBill: "", cleanNotes: notes };
+}
+
+function extractDistrictPanchayat(address?: string | null) {
+  if (!address) return { districtPanchayat: "", cleanAddress: "" };
+  const match = address.match(/(?:\[District\/Panchayat:\s*([^\]]+)\])|(?:District\s*\/?\s*Panchayat:\s*([^\n\r]+))/i);
+  if (match) {
+    const districtPanchayat = (match[1] || match[2] || "").trim();
+    const cleanAddress = address
+      .replace(/(?:,?\s*District\s*\/?\s*Panchayat:\s*[^\n\r]*)|(?:\[District\/Panchayat:[^\]]*\]\s*)/gi, "")
+      .trim();
+    return { districtPanchayat, cleanAddress };
+  }
+  return { districtPanchayat: "", cleanAddress: address };
+}
 
 // Form schema for client-side validation - make branchId optional when user has branch
 const createEnquiryFormSchema = (userHasBranch: boolean) =>
   z.object({
-    candidateName: z.string().min(1, "Candidate name is required").max(100),
+    candidateName: z.string().min(1, "Customer name is required").max(100),
     phone: z.string().min(10, "Valid phone number is required").max(15),
     contact2: z.string().optional(),
     email: z
@@ -64,6 +91,8 @@ const createEnquiryFormSchema = (userHasBranch: boolean) =>
       .optional()
       .or(z.literal("")),
     address: z.string().optional(),
+    ksebBill: z.string().optional(),
+    districtPanchayat: z.string().optional(),
     status: z.nativeEnum(EnquiryStatus).optional(),
     notes: z.string().optional(),
     feedback: z.string().optional(),
@@ -157,6 +186,8 @@ export function EnquiryFormDialog({
     useAction(getCourses);
   const { execute: fetchServices, result: servicesResult } =
     useAction(getRequiredServices);
+  const { execute: fetchSources, result: sourcesResult } =
+    useAction(getEnquirySources);
   const { execute: fetchUsers, result: usersResult } =
     useAction(getUsers);
 
@@ -164,6 +195,14 @@ export function EnquiryFormDialog({
 
   const isExecuting = isCreating || isUpdating;
   const actionResult = isEditMode ? updateResult : createResult;
+
+  const { ksebBill: initialKseb, cleanNotes: initialNotes } = extractKsebBill(
+    enquiry?.notes
+  );
+  const {
+    districtPanchayat: initialDP,
+    cleanAddress: initialAddress,
+  } = extractDistrictPanchayat(enquiry?.address);
 
   // Form - use dynamic schema based on whether user has branch
   const form = useForm<EnquiryFormData>({
@@ -173,11 +212,17 @@ export function EnquiryFormDialog({
       phone: enquiry?.phone || "",
       contact2: enquiry?.contact2 || "",
       email: enquiry?.email || "",
-      address: enquiry?.address || "",
+      address: initialAddress || "",
+      ksebBill: initialKseb || "",
+      districtPanchayat: initialDP || "",
       status: enquiry?.status || EnquiryStatus.NEW,
-      notes: enquiry?.notes || "",
+      notes: initialNotes || "",
       feedback: enquiry?.feedback || "",
-      enquirySourceId: enquiry?.enquirySourceId || "",
+      enquirySourceId:
+        enquiry?.enquirySourceId ||
+        (enquiry as any)?.sourceId ||
+        enquiry?.enquirySource?.id ||
+        "",
       branchId: enquiry?.branchId || undefined,
 
       preferredCourseId: enquiry?.preferredCourseId || "",
@@ -193,16 +238,29 @@ export function EnquiryFormDialog({
     const defaultBranchId = enquiry?.branchId || userBranch || "";
 
     if (shouldReset || (!enquiry && userBranch)) {
+      const { ksebBill: rKseb, cleanNotes: rNotes } = extractKsebBill(
+        enquiry?.notes
+      );
+      const {
+        districtPanchayat: rDP,
+        cleanAddress: rAddress,
+      } = extractDistrictPanchayat(enquiry?.address);
       form.reset({
         candidateName: enquiry?.candidateName || "",
         phone: enquiry?.phone || "",
         contact2: enquiry?.contact2 || "",
         email: enquiry?.email || "",
-        address: enquiry?.address || "",
+        address: rAddress || "",
+        ksebBill: rKseb || "",
+        districtPanchayat: rDP || "",
         status: enquiry?.status || EnquiryStatus.NEW,
-        notes: enquiry?.notes || "",
+        notes: rNotes || "",
         feedback: enquiry?.feedback || "",
-        enquirySourceId: enquiry?.enquirySourceId || "",
+        enquirySourceId:
+          enquiry?.enquirySourceId ||
+          (enquiry as any)?.sourceId ||
+          enquiry?.enquirySource?.id ||
+          "",
         branchId: defaultBranchId,
         preferredCourseId: enquiry?.preferredCourseId || "",
         requiredServiceId: enquiry?.requiredServiceId || "",
@@ -256,6 +314,7 @@ export function EnquiryFormDialog({
       }
       fetchCourses({});
       fetchServices({});
+      fetchSources({});
       fetchUsers({});
     } else if (!open) {
       hasFetchedRef.current = false;
@@ -278,6 +337,22 @@ export function EnquiryFormDialog({
       return;
     }
 
+    // Package KSEB bill into notes
+    let finalNotes = data.notes?.trim() || "";
+    if (data.ksebBill?.trim()) {
+      finalNotes = `[Avg. KSEB Bill: ${data.ksebBill.trim()}] ${finalNotes}`.trim();
+    }
+
+    // Package District/Panchayat into address
+    let finalAddress = data.address?.trim() || "";
+    if (data.districtPanchayat?.trim()) {
+      if (finalAddress) {
+        finalAddress = `${finalAddress}\nDistrict/Panchayat: ${data.districtPanchayat.trim()}`;
+      } else {
+        finalAddress = `District/Panchayat: ${data.districtPanchayat.trim()}`;
+      }
+    }
+
     try {
       if (isEditMode) {
         // Update existing enquiry
@@ -290,8 +365,8 @@ export function EnquiryFormDialog({
           branchId: finalBranchId,
           contact2: data.contact2 || undefined,
           email: data.email || undefined,
-          address: data.address || undefined,
-          notes: data.notes || undefined,
+          address: finalAddress || undefined,
+          notes: finalNotes || undefined,
           feedback: data.feedback || undefined,
           preferredCourseId: data.preferredCourseId || undefined,
           requiredServiceId: data.requiredServiceId || undefined,
@@ -316,10 +391,10 @@ export function EnquiryFormDialog({
           branchId: finalBranchId!,
           contact2: data.contact2 || undefined,
           email: data.email || undefined,
-          address: data.address || undefined,
+          address: finalAddress || undefined,
           preferredCourseId: data.preferredCourseId || undefined,
           requiredServiceId: data.requiredServiceId || undefined,
-          notes: data.notes || undefined,
+          notes: finalNotes || undefined,
           assignedToUserId: data.assignedToUserId || undefined,
           createdByUserId: data.createdByUserId || undefined,
         };
@@ -344,6 +419,7 @@ export function EnquiryFormDialog({
   const branches = passedBranches && passedBranches.length > 0 ? passedBranches : ((branchesResult?.data?.data as Branch[]) || []);
   const courses = (coursesResult?.data?.data as Course[]) || [];
   const services = (servicesResult?.data?.data as RequiredService[]) || [];
+  const sources = (sourcesResult?.data?.data as EnquirySource[]) || [];
   const users = (usersResult?.data?.data as any[]) || [];
 
   // Find user's branch name for display
@@ -431,16 +507,16 @@ export function EnquiryFormDialog({
                 className="space-y-6"
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Candidate Name */}
+                  {/* Customer Name */}
                   <FormField
                     control={form.control}
                     name="candidateName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Contact or Business Name *</FormLabel>
+                        <FormLabel>Customer Name *</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="Enter a person or company name"
+                            placeholder="Enter customer name"
                             {...field}
                           />
                         </FormControl>
@@ -464,16 +540,16 @@ export function EnquiryFormDialog({
                     )}
                   />
 
-                  {/* Contact 2 */}
+                  {/* WhatsApp Name / Contact */}
                   <FormField
                     control={form.control}
                     name="contact2"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Secondary Contact</FormLabel>
+                        <FormLabel>WhatsApp Name</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="Enter secondary contact"
+                            placeholder="Enter WhatsApp name or number"
                             {...field}
                           />
                         </FormControl>
@@ -578,13 +654,13 @@ export function EnquiryFormDialog({
                     )
                   )}
 
-                  {/* Preferred Course */}
+                  {/* Required Capacity */}
                   <FormField
                     control={form.control}
                     name="preferredCourseId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Solar Solution of Interest</FormLabel>
+                        <FormLabel>Required Capacity</FormLabel>
                         <Select
                           onValueChange={(value) =>
                             field.onChange(value || undefined)
@@ -593,14 +669,15 @@ export function EnquiryFormDialog({
                         >
                           <FormControl>
                             <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select a solar package (optional)" />
+                              <SelectValue placeholder="Select required capacity (optional)" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             {courses.map((course) => (
                               <SelectItem key={course.id} value={course.id}>
                                 {course.name}{" "}
-                                {course.duration && `- ${course.duration}`}
+                                {course.duration ? `(${course.duration})` : ""}
+                                {course.courseFee ? ` - ₹${course.courseFee.toLocaleString("en-IN")}` : ""}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -616,7 +693,7 @@ export function EnquiryFormDialog({
                     name="requiredServiceId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Service Need</FormLabel>
+                        <FormLabel>Required Service</FormLabel>
                         <Select
                           onValueChange={(value) =>
                             field.onChange(value || undefined)
@@ -625,7 +702,7 @@ export function EnquiryFormDialog({
                         >
                           <FormControl>
                             <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select installation or maintenance (optional)" />
+                              <SelectValue placeholder="Select service (optional)" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -636,6 +713,70 @@ export function EnquiryFormDialog({
                             ))}
                           </SelectContent>
                         </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Lead Source */}
+                  <FormField
+                    control={form.control}
+                    name="enquirySourceId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Lead Source</FormLabel>
+                        <Select
+                          onValueChange={(value) =>
+                            field.onChange(value === "none" ? undefined : value)
+                          }
+                          value={field.value || "none"}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select lead source (optional)" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="none">
+                              Select lead source (optional)
+                            </SelectItem>
+                            {sources.map((source) => (
+                              <SelectItem key={source.id} value={source.id}>
+                                {source.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Avg KSEB Bill */}
+                  <FormField
+                    control={form.control}
+                    name="ksebBill"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Avg. KSEB Bill (₹)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. ₹2,500 / month" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* District / Panchayat */}
+                  <FormField
+                    control={form.control}
+                    name="districtPanchayat"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>District / Panchayat</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. Kozhikode, Olavanna" {...field} />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -735,7 +876,7 @@ export function EnquiryFormDialog({
                           <FormLabel>Feedback</FormLabel>
                           <FormControl>
                             <Textarea
-                              placeholder="Site requirements, roof details, or customer feedback"
+                              placeholder="Feedback from the candidate"
                               className="resize-none"
                               {...field}
                             />
@@ -755,7 +896,7 @@ export function EnquiryFormDialog({
                         <FormLabel>Notes</FormLabel>
                         <FormControl>
                           <Textarea
-                              placeholder="Notes about the lead or proposed solar project"
+                            placeholder="Additional notes about the enquiry"
                             className="resize-none"
                             {...field}
                           />

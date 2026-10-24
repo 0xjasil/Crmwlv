@@ -8,7 +8,7 @@ This is a Customer Relationship Management (CRM) application built with a modern
 *   **Language:** TypeScript
 *   **Styling:** Tailwind CSS
 *   **UI Components:** shadcn/ui + Radix UI
-*   **Database:** MongoDB with Prisma ORM
+*   **Database:** PostgreSQL with Prisma ORM
 *   **Package Manager:** pnpm
 
 **Architecture:**

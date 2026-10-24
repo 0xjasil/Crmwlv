@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { IconSun } from '@tabler/icons-react';
+import { IconInnerShadowTop } from '@tabler/icons-react';
 
 import { NavAdmin } from '@/components/nav-admin';
 import { NavMain } from '@/components/nav-main';
@@ -30,10 +30,10 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 
 export function AppSidebar({ user, counts, ...props }: AppSidebarProps) {
   const navMainWithCounts = SIDEBAR_DATA.navMain.map((item) => {
-    if (item.title === 'Leads' && counts?.enquiries) {
+    if (item.title === 'Enquiries' && counts?.enquiries) {
       return { ...item, badge: counts.enquiries };
     }
-    if (item.title === 'Installations') {
+    if (item.title === 'Job Orders') {
       return {
         ...item,
         items: item.items?.map((subItem) => {
@@ -44,7 +44,7 @@ export function AppSidebar({ user, counts, ...props }: AppSidebarProps) {
         }),
       };
     }
-    if (item.title === 'Sales Follow-ups' && counts?.followUps) {
+    if (item.title === 'Follow-ups' && counts?.followUps) {
       return { ...item, badge: counts.followUps };
     }
     return item;
@@ -58,11 +58,11 @@ export function AppSidebar({ user, counts, ...props }: AppSidebarProps) {
             <SidebarMenuButton asChild size="lg" className="hover:bg-transparent">
               <Link href="/dashboard" className="flex items-center gap-2.5">
                 <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-xs">
-                  <IconSun className="size-5" />
+                  <IconInnerShadowTop className="size-5" />
                 </div>
                 <div className="flex flex-col gap-0.5 leading-none">
                   <span className="text-sm font-bold tracking-tight text-foreground">{COMPANY_INFO.name}</span>
-                  <span className="text-[11px] text-muted-foreground font-normal">Solar operations</span>
+                  <span className="text-[11px] text-muted-foreground font-normal">CRM Workspace</span>
                 </div>
               </Link>
             </SidebarMenuButton>
