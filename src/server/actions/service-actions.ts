@@ -465,14 +465,14 @@ export async function listStudents(): Promise<ActionResponse<{ id: string; candi
         });
         return {
             success: true,
-            message: "Students fetched successfully",
+            message: "Customers fetched successfully",
             data: students,
         };
     } catch (error) {
-        console.error("Error fetching students:", error);
+        console.error("Error fetching customers:", error);
         return {
             success: false,
-            message: "Failed to fetch students",
+            message: "Failed to fetch customers",
             data: [],
         };
     }

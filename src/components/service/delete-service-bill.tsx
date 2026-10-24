@@ -86,7 +86,7 @@ export default function DeleteServiceBillModal({
                     <span className="font-mono text-xs">{serviceBill.id}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="font-medium">Student:</span>
+                    <span className="font-medium">Customer:</span>
                     <span className="font-semibold">
                       {serviceBill.admission.candidateName}
                     </span>

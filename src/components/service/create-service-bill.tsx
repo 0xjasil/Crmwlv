@@ -37,7 +37,7 @@ import {
 } from "@/server/actions/service-actions";
 import { CreateServiceBilling } from "@/types/service-billing";
 
-interface Student {
+interface Customer {
  id: string;
  candidateName: string;
 }
@@ -51,7 +51,7 @@ interface Service {
 // NOTE: We need to define the schema without the total/paid validation first,
 // and then refine the whole object in the component because 'total' depends on state.
 const serviceBillSchema = z.object({
- admissionId: z.string().min(1, "Student selection is required"),
+ admissionId: z.string().min(1, "Customer / Site selection is required"),
  serviceIds: z
   .array(z.string())
   .min(1, "At least one service must be selected"),
@@ -92,7 +92,7 @@ export default function CreateServiceBillModal({
  onOpenChange,
  onSuccess,
 }: CreateServiceBillModalProps) {
- const [students, setStudents] = useState<Student[]>([]);
+ const [customers, setCustomers] = useState<Customer[]>([]);
  const [services, setServices] = useState<Service[]>([]);
  const [selectedServices, setSelectedServices] = useState<string[]>([]);
  const [isSubmitting, setIsSubmitting] = useState(false);
@@ -124,7 +124,7 @@ export default function CreateServiceBillModal({
    ]);
 
    if (studentsResult.success && studentsResult.data) {
-    setStudents(studentsResult.data);
+    setCustomers(studentsResult.data);
    }
    if (servicesResult.success && servicesResult.data) {
     setServices(servicesResult.data);
@@ -225,7 +225,7 @@ export default function CreateServiceBillModal({
     <DialogHeader>
      <DialogTitle>Create Service Bill</DialogTitle>
      <DialogDescription>
-      Create a new service bill for a student with selected services
+      Generate a new service bill for a customer site with selected solar services
      </DialogDescription>
     </DialogHeader>
 
@@ -233,27 +233,27 @@ export default function CreateServiceBillModal({
      onSubmit={serviceBillForm.handleSubmit(handleCreateServiceBill)}
      className="space-y-6"
     >
-     {/* Student Selection */}
+     {/* Customer Selection */}
      <div className="space-y-2">
-      <Label htmlFor="student-select">Select Student</Label>
+      <Label htmlFor="customer-select">Select Customer / Site *</Label>
       <Select
        value={serviceBillForm.watch("admissionId")}
        onValueChange={(value) =>
         serviceBillForm.setValue("admissionId", value)
        }
       >
-       <SelectTrigger>
-        <SelectValue placeholder="Choose a student" />
+       <SelectTrigger id="customer-select">
+        <SelectValue placeholder="Choose customer / installation site" />
        </SelectTrigger>
        <SelectContent>
-        {students.length === 0 ? (
+        {customers.length === 0 ? (
          <SelectItem value="none" disabled>
-          Loading students...
+          No customers found
          </SelectItem>
         ) : (
-         students.map((student) => (
-          <SelectItem key={student.id} value={student.id}>
-           {student.candidateName}
+         customers.map((customer) => (
+          <SelectItem key={customer.id} value={customer.id}>
+           {customer.candidateName}
           </SelectItem>
          ))
         )}

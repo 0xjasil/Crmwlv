@@ -90,27 +90,27 @@ export const exportServiceBillPdf = (
   
   yPosition += 20;
 
-  // Student Information Section
+  // Customer & Site Information Section
   doc.setFontSize(14);
   doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-  doc.text("Student Information", 14, yPosition);
+  doc.text("Customer & Site Information", 14, yPosition);
   
   yPosition += 10;
   
-  // Student details table
-  const studentDetails = [
-    ["Student Name", admission.candidateName],
-    ["Admission Number", admission.admissionNumber],
-    ["Mobile Number", admission.mobileNumber],
+  // Customer details table
+  const customerDetails = [
+    ["Customer Name", admission.candidateName],
+    ["Site Survey / Order ID", admission.admissionNumber],
+    ["Contact Number", admission.mobileNumber],
     ["Email", admission.email || "N/A"],
-    ["Course", admission.course.name],
-    ["Address", admission.address],
+    ["Installed Capacity", admission.course.name],
+    ["Site Address", admission.address],
   ];
 
   autoTable(doc, {
     startY: yPosition,
     head: [["Field", "Details"]],
-    body: studentDetails,
+    body: customerDetails,
     styles: { 
       fontSize: 10,
       cellPadding: 5,

@@ -51,6 +51,7 @@ import {
   Save,
   X,
   History,
+  Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -550,28 +551,28 @@ function ServicePage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Main Details */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Student Information */}
+          {/* Customer & Site Information */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <User className="h-5 w-5" />
-                Student Information
+                Customer & Site Information
               </CardTitle>
               <CardDescription>
-                Details of the student for this service bill
+                Details of the customer and site for this service bill
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">
-                    Student Name
+                    Customer Name
                   </label>
                   <p className="font-medium">{admission.candidateName}</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">
-                    Admission Number
+                    Site Survey / Order ID
                   </label>
                   <p className="font-medium font-mono text-sm">
                     {admission.admissionNumber}
@@ -579,7 +580,7 @@ function ServicePage() {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">
-                    Mobile Number
+                    Contact Number
                   </label>
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4 text-muted-foreground" />
@@ -625,7 +626,7 @@ function ServicePage() {
               <Separator />
               <div>
                 <label className="text-sm font-medium text-muted-foreground">
-                  Address
+                  Site Address
                 </label>
                 <div className="flex items-start gap-2 mt-1">
                   <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
@@ -634,10 +635,10 @@ function ServicePage() {
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">
-                  Course
+                  Installed Solar Capacity
                 </label>
                 <div className="flex items-center gap-2 mt-1">
-                  <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                  <Zap className="h-4 w-4 text-muted-foreground" />
                   <p className="font-medium">{admission.course.name}</p>
                 </div>
               </div>
@@ -1085,7 +1086,7 @@ function ServicePage() {
                     <div className="flex items-center gap-2">
                       <AlertCircle className="h-4 w-4 text-red-600" />
                       <span className="text-sm font-medium text-red-700">
-                        Student Balance
+                        Customer Balance
                       </span>
                     </div>
                     <Badge variant="destructive" className="font-semibold">
@@ -1114,7 +1115,7 @@ function ServicePage() {
               <Link href={`/admissions/${admission.id}`}>
                 <Button className="w-full" variant="outline">
                   <User className="mr-2 h-4 w-4" />
-                  View Student Details
+                  View Customer Details
                 </Button>
               </Link>
             </CardContent>
