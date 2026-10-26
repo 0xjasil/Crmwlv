@@ -5,6 +5,7 @@ import { actionClient } from '@/lib/safe-action';
 import { auth } from '@/lib/auth';
 import { returnValidationErrors } from 'next-safe-action';
 import prisma from '@/lib/prisma';
+import bcrypt from 'bcryptjs';
 import { redirect } from 'next/navigation';
 import { cookies, headers } from 'next/headers';
 import { loginSchema, userFormSchema } from '@/schema/user-schema';
@@ -46,26 +47,20 @@ export const createUserAction = actionClient
   .inputSchema(userFormSchema)
   .action(async ({ parsedInput: { name, email, password, role, branch, permissions } }) => {
     try {
-      // 1. Create base user
-      const { user } = await auth.api.createUser({
-        body: {
-          name,
-          email,
-          password,
-          role,
-          data: {
-            branch,
-          },
-        },
-      });
+      const normalizedEmail = email.toLowerCase().trim();
 
-      if (!user) {
+      // Check duplicate early to return clean validation error
+      const existing = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+      });
+      if (existing) {
         return returnValidationErrors(userFormSchema, {
-          _errors: ['Failed to create user account'],
+          email: {
+            _errors: ['A user with this email address already exists'],
+          },
         });
       }
 
-      // 2. Resolve or create custom role with permissions
       await ensureStandardRolesExist();
 
       const defaultPos = SOFTWARE_POSITIONS.find((p) => p.id === role);
@@ -74,45 +69,86 @@ export const createUserAction = actionClient
           ? permissions
           : defaultPos?.defaultPermissions || ['dashboard'];
 
-      // Find or create role record
-      let roleRecord = await prisma.role.findFirst({
-        where: {
-          OR: [{ id: `role_${role}` }, { name: role }],
-        },
-      });
+      const hashedPassword = await bcrypt.hash(password, 10);
 
-      // If user has customized permissions different from the standard role, create a user-specific role
-      if (
-        permissions &&
-        permissions.length > 0 &&
-        JSON.stringify(permissions.sort()) !== JSON.stringify((defaultPos?.defaultPermissions || []).sort())
-      ) {
-        roleRecord = await prisma.role.create({
+      // Create user, custom role (if customized), and credential account record atomically
+      const createdUser = await prisma.$transaction(async (tx) => {
+        let roleRecord = await tx.role.findFirst({
+          where: {
+            OR: [{ id: `role_${role}` }, { name: role }],
+          },
+        });
+
+        const isCustomPermissions =
+          permissions &&
+          permissions.length > 0 &&
+          JSON.stringify(permissions.sort()) !== JSON.stringify((defaultPos?.defaultPermissions || []).sort());
+
+        const newUser = await tx.user.create({
           data: {
-            id: `role_${user.id}`,
-            name: `${role}_${user.name.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
-            description: `Custom permissions for ${user.name}`,
-            permissions: effectivePermissions,
+            name: name.trim(),
+            email: normalizedEmail,
+            role,
+            branch: branch || null,
+            password: hashedPassword,
+            emailVerified: true,
+          },
+        });
+
+        let targetRoleId = roleRecord?.id;
+
+        if (isCustomPermissions) {
+          const customRole = await tx.role.create({
+            data: {
+              id: `role_${newUser.id}`,
+              name: `${role}_${newUser.name.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+              description: `Custom permissions for ${newUser.name}`,
+              permissions: effectivePermissions,
+              updatedAt: new Date(),
+            },
+          });
+          targetRoleId = customRole.id;
+        }
+
+        if (targetRoleId) {
+          await tx.user.update({
+            where: { id: newUser.id },
+            data: {
+              roleId: targetRoleId,
+            },
+          });
+        }
+
+        // Create credential account record for Better-Auth compatibility
+        await tx.account.create({
+          data: {
+            id: `acc_${newUser.id}`,
+            userId: newUser.id,
+            accountId: normalizedEmail,
+            providerId: 'credential',
+            password: hashedPassword,
             updatedAt: new Date(),
           },
         });
-      }
 
-      // Link user with roleId
-      if (roleRecord) {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            role,
-            roleId: roleRecord.id,
-          },
+        return tx.user.findUnique({
+          where: { id: newUser.id },
+          include: { userRole: true },
+        });
+      });
+
+      if (!createdUser) {
+        return returnValidationErrors(userFormSchema, {
+          _errors: ['Failed to create user account'],
         });
       }
+
+      const { password: _, ...safeUser } = createdUser;
 
       return {
         success: true,
         message: `User account created successfully with ${defaultPos?.title || role} access`,
-        user,
+        user: safeUser,
       };
     } catch (error: any) {
       console.error('Create user action error:', error);
@@ -285,11 +321,29 @@ export const deleteUserAction = actionClient
   )
   .action(async ({ parsedInput: { userId } }) => {
     try {
+      const targetUser = await prisma.user.findUnique({
+        where: { id: userId },
+      });
+
+      if (!targetUser) {
+        return { success: false, message: 'User not found' };
+      }
+
+      if (targetUser.role === 'admin' || targetUser.email === 'admin@elevate.com') {
+        return {
+          success: false,
+          message: 'Security policy: The primary administrator account cannot be deleted',
+        };
+      }
+
       await prisma.user.delete({
         where: { id: userId },
       });
 
       await cacheService.delete(`user:${userId}`);
+      if (targetUser.email) {
+        await cacheService.delete(`user:email:${targetUser.email}`);
+      }
 
       return {
         success: true,
@@ -368,7 +422,6 @@ export const loginAction = actionClient
   .inputSchema(loginSchema)
   .action(async ({ parsedInput: { email, password } }) => {
     try {
-      // Use better-auth to sign in
       const signInResult = await auth.api.signInEmail({
         body: {
           email,
@@ -376,28 +429,45 @@ export const loginAction = actionClient
         },
       });
 
-      if (!signInResult.user) {
+      if (!signInResult.user || !signInResult.token) {
         return returnValidationErrors(loginSchema, {
-          _errors: ['Invalid email or password'],
+          _errors: [signInResult.error?.message || 'Invalid email or password'],
         });
       }
 
-      const user = await prisma.user.findUnique({
-        where: { email: signInResult.user.email },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          branch: true,
-          userRole: true,
-        },
+      const cookieStore = await cookies();
+      const isProd = process.env.NODE_ENV === 'production';
+      const maxAge = 7 * 24 * 60 * 60; // 7 days
+
+      cookieStore.set('token', signInResult.token, {
+        path: '/',
+        httpOnly: false,
+        secure: isProd,
+        sameSite: 'lax',
+        maxAge,
+      });
+
+      cookieStore.set('auth_token', signInResult.token, {
+        path: '/',
+        httpOnly: true,
+        secure: isProd,
+        sameSite: 'lax',
+        maxAge,
+      });
+
+      cookieStore.set('user', encodeURIComponent(JSON.stringify(signInResult.user)), {
+        path: '/',
+        httpOnly: false,
+        secure: isProd,
+        sameSite: 'lax',
+        maxAge,
       });
 
       return {
         success: true,
         message: 'Login successful',
-        data: user,
+        data: signInResult.user,
+        token: signInResult.token,
         redirectTo: '/dashboard',
       };
     } catch (error) {
@@ -413,7 +483,9 @@ export const logoutAction = actionClient.action(async () => {
   // Clear all auth-related cookies
   const cookieStore = await cookies();
 
-  // Clear potential better-auth session cookies
+  cookieStore.delete('token');
+  cookieStore.delete('auth_token');
+  cookieStore.delete('user');
   cookieStore.delete('better-auth.session_token');
   cookieStore.delete('session_token');
   cookieStore.delete('auth.session-token');

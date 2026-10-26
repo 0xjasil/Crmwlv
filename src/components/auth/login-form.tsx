@@ -46,7 +46,7 @@ export function LoginForm() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: data.email,
+          email: data.email.toLowerCase().trim(),
           password: data.password,
         }),
       });
