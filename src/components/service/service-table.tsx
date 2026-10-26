@@ -90,7 +90,11 @@ type ServiceBillForm = z.infer<typeof serviceBillSchema>;
 type SortBy = "billDate" | "total";
 type SortOrder = "asc" | "desc";
 
-export default function ServiceTable() {
+export default function ServiceTable({
+  hideOuterContainer = false,
+}: {
+  hideOuterContainer?: boolean;
+} = {}) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
@@ -178,7 +182,7 @@ export default function ServiceTable() {
     }
 
     const columns: PdfColumn<ServiceBillingWithAdmission>[] = [
-      { header: "Bill ID", key: "id" },
+      { header: "Bill ID", key: (row) => row.billId || row.id },
       { header: "Customer Name", key: (row) => row.admission.candidateName },
       {
         header: "Services",
@@ -332,19 +336,18 @@ export default function ServiceTable() {
   };
 
   useEffect(() => {
-    const loadServices = async () => {
+    const loadFilterOptions = async () => {
       try {
         const servicesResult = await listServices();
         if (servicesResult.success && servicesResult.data) {
           setServices(servicesResult.data);
         }
       } catch (error) {
-        toast.error("Failed to load services for filter");
-        console.error("Failed to load services for filter", error);
+        console.error("Failed to load filter options", error);
       }
     };
 
-    loadServices();
+    loadFilterOptions();
   }, []);
 
   const handleSearchChange = (value: string) => {
@@ -378,12 +381,16 @@ export default function ServiceTable() {
     };
   };
 
-  return (
-    <PageContainer>
-      <PageHeader
-        title="Service Billing"
-        description={`Track service orders, invoices, and collected payments • Billed Volume: ${formatCurrency(totalAmount)}`}
-        actions={
+  const tableContent = (
+    <>
+      {hideOuterContainer ? (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-1">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">Service Billing Records</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Track customer site service orders, invoices, and collected payments • Billed Volume: {formatCurrency(totalAmount)}
+            </p>
+          </div>
           <div className="flex items-center gap-2">
             <Button
               onClick={refreshServiceBills}
@@ -415,8 +422,46 @@ export default function ServiceTable() {
               Create Service Bill
             </Button>
           </div>
-        }
-      />
+        </div>
+      ) : (
+        <PageHeader
+          title="Service Billing"
+          description={`Track service orders, invoices, and collected payments • Billed Volume: ${formatCurrency(totalAmount)}`}
+          actions={
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={refreshServiceBills}
+                variant="outline"
+                size="sm"
+                className="h-9 gap-1.5 text-xs font-medium"
+              >
+                <RotateCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
+                Refresh
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={exportServiceBillsPdf}
+                className="h-9 gap-1.5 text-xs font-medium"
+              >
+                <FileDown className="h-3.5 w-3.5" />
+                Export PDF
+              </Button>
+              <Button
+                size="sm"
+                className="h-9 gap-1.5 text-xs font-medium"
+                onClick={() => {
+                  setDialogOpen(true);
+                  loadFormData();
+                }}
+              >
+                <Wrench className="h-3.5 w-3.5" />
+                Create Service Bill
+              </Button>
+            </div>
+          }
+        />
+      )}
 
       {/* Filter Bar */}
       <div className="flex flex-col sm:flex-row items-center gap-3 rounded-xl border border-border/80 bg-card p-3 shadow-sm">
@@ -430,7 +475,7 @@ export default function ServiceTable() {
           />
         </div>
 
-        <div className="flex w-full sm:w-auto items-center gap-2">
+        <div className="flex w-full sm:w-auto items-center gap-2 flex-wrap sm:flex-nowrap">
           <Select
             value={selectedService}
             onValueChange={(value) => {
@@ -438,7 +483,7 @@ export default function ServiceTable() {
               setCurrentPage(1);
             }}
           >
-            <SelectTrigger className="w-full sm:w-[180px] h-9 text-xs">
+            <SelectTrigger className="w-full sm:w-[170px] h-9 text-xs">
               <SelectValue placeholder="All Services" />
             </SelectTrigger>
             <SelectContent>
@@ -478,7 +523,7 @@ export default function ServiceTable() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[120px]">Bill ID</TableHead>
-                    <TableHead>Customer Name</TableHead>
+                    <TableHead>Customer</TableHead>
                     <TableHead>Services</TableHead>
                     <TableHead className="w-[110px]">Bill Date</TableHead>
                     <TableHead className="w-[110px]">Status</TableHead>
@@ -561,9 +606,14 @@ export default function ServiceTable() {
                         {serviceBill.billId}
                       </TableCell>
                       <TableCell>
-                        <span className="font-medium text-xs text-foreground">
-                          {serviceBill.admission.candidateName}
-                        </span>
+                        <div className="font-semibold text-xs text-foreground">
+                          {serviceBill.admission?.candidateName || "Unknown Customer"}
+                        </div>
+                        {serviceBill.admission?.admissionNumber && (
+                          <div className="text-[11px] font-mono text-muted-foreground">
+                            {serviceBill.admission.admissionNumber}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         <span
@@ -701,6 +751,12 @@ export default function ServiceTable() {
         serviceBill={deletingServiceBill}
         onSuccess={refreshServiceBills}
       />
-    </PageContainer>
+    </>
   );
+
+  if (hideOuterContainer) {
+    return <div className="space-y-6">{tableContent}</div>;
+  }
+
+  return <PageContainer>{tableContent}</PageContainer>;
 }

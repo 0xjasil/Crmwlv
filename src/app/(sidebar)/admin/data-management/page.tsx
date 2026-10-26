@@ -531,11 +531,10 @@ export default function DataManagementPage() {
     data: unknown[],
     columns: string[]
   ) => {
-    const filteredData = data.filter((item) =>
-      (item as { name: string }).name
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase())
-    );
+    const filteredData = data.filter((item) => {
+      const name = (item as { name?: string })?.name ?? "";
+      return name.toLowerCase().includes(searchQuery.toLowerCase().trim());
+    });
 
     return (
       <div className="space-y-4">
@@ -751,7 +750,8 @@ export default function DataManagementPage() {
                                         case "required-service":
                                           handleDeleteRequiredService(
                                             typedItem.id
-                                        )
+                                          );
+                                          break;
                                         case "branch":
                                           handleDeleteBranch(typedItem.id);
                                           break;
@@ -1341,7 +1341,10 @@ export default function DataManagementPage() {
 
       <Tabs
         value={activeTab}
-        onValueChange={setActiveTab}
+        onValueChange={(val) => {
+          setActiveTab(val);
+          setSearchQuery("");
+        }}
         className="space-y-6"
       >
         <TabsList className="grid w-full grid-cols-6">

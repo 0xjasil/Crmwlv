@@ -1,10 +1,19 @@
-import ServiceTable from '@/components/service/service-table'
-import React from 'react'
+"use client";
 
-function ServiceBillsPage() {
+import React, { Suspense } from "react";
+import ServiceTable from "@/components/service/service-table";
+import { PageContainer } from "@/components/ui/page-header";
+
+export default function ServicesPage() {
   return (
-    <ServiceTable/>
-  )
+    <Suspense
+      fallback={
+        <PageContainer>
+          <div className="h-24 animate-pulse rounded-lg bg-muted" />
+        </PageContainer>
+      }
+    >
+      <ServiceTable />
+    </Suspense>
+  );
 }
-
-export default ServiceBillsPage

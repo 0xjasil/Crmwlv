@@ -161,12 +161,13 @@ export default function EditServiceBillModal({
           onSubmit={serviceBillForm.handleSubmit(handleUpdateServiceBill)}
           className="space-y-6"
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Customer / Site Name</Label>
-              <div className="p-2.5 bg-muted rounded-md text-sm text-muted-foreground">
-                {serviceBill?.admission.candidateName}
-              </div>
+          <div className="space-y-2">
+            <Label>Customer Name</Label>
+            <div className="p-2.5 bg-muted rounded-md text-sm text-foreground font-medium flex items-center justify-between">
+              <span>{serviceBill?.admission.candidateName}</span>
+              {serviceBill?.admission.admissionNumber && (
+                <span className="text-xs text-muted-foreground font-mono">({serviceBill.admission.admissionNumber})</span>
+              )}
             </div>
           </div>
 

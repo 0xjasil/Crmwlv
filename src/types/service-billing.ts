@@ -46,8 +46,17 @@ export interface ServiceBillingWithAdmission {
   updatedAt: Date;
   status : "PAID" | "UNPAID" | "PARTIALLY_PAID";
   admission: {
+    id?: string;
     candidateName: string;
     admissionNumber: string;
+    course?: {
+      id: string;
+      name: string;
+      duration?: string | null;
+      courseFee?: number | null;
+      admissionFee?: number | null;
+      semesterFee?: number | null;
+    } | null;
   };
   services?: Array<{
     id: string;

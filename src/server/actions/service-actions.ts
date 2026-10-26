@@ -38,6 +38,7 @@ export async function listServiceBilling(
     sortBy: string = 'billDate',
     sortOrder: 'asc' | 'desc' = 'desc',
     serviceId = "",
+    courseId = "",
 ): Promise<ActionResponse<{ data: ServiceBillingWithAdmission[]; pagination: { page: number; pageSize: number; total: number; pages: number } }>> {
     try {
         const { page: validPage, limit: validPageSize, skip } = normalizePagination({
@@ -72,6 +73,14 @@ export async function listServiceBilling(
             };
         }
 
+        // Filter by specific required capacity / course
+        if (courseId && courseId.trim() && courseId !== "all") {
+            whereClause.admission = {
+                ...(whereClause.admission || {}),
+                courseId: courseId,
+            };
+        }
+
         // Filter by specific service
         if (serviceId && serviceId.trim() && serviceId !== "all") {
             whereClause.serviceIds = {
@@ -95,6 +104,16 @@ export async function listServiceBilling(
                         id: true,
                         candidateName: true,
                         admissionNumber: true,
+                        course: {
+                            select: {
+                                id: true,
+                                name: true,
+                                duration: true,
+                                courseFee: true,
+                                admissionFee: true,
+                                semesterFee: true,
+                            },
+                        },
                     },
                 },
             },
@@ -167,18 +186,6 @@ export async function createServiceBilling(input: CreateServiceBilling): Promise
             return {
                 success: false,
                 message: "Service ids, total and admission id are required",
-                data:null,
-            };
-        }
-        const existingBill = await prisma.serviceBill.findFirst({
-            where: {
-                admissionId: input.admissionId,
-            },
-        })
-        if(existingBill){
-            return {
-                success: false,
-                message: "Service billing already exists for this admission",
                 data:null,
             };
         }
@@ -450,7 +457,17 @@ export async function deleteServiceBilling(input: DeleteServiceBilling): Promise
 }
 
 
-export async function listStudents(): Promise<ActionResponse<{ id: string; candidateName: string }[]>> {
+export async function listStudents(): Promise<ActionResponse<{
+    id: string;
+    candidateName: string;
+    admissionNumber: string;
+    course?: {
+        id: string;
+        name: string;
+        duration?: string | null;
+        courseFee?: number | null;
+    } | null;
+}[]>> {
     try {
         const students = await prisma.admission.findMany({
             where: {
@@ -461,6 +478,18 @@ export async function listStudents(): Promise<ActionResponse<{ id: string; candi
             select: {
                 id: true,
                 candidateName: true,
+                admissionNumber: true,
+                course: {
+                    select: {
+                        id: true,
+                        name: true,
+                        duration: true,
+                        courseFee: true,
+                    },
+                },
+            },
+            orderBy: {
+                candidateName: "asc",
             },
         });
         return {
@@ -620,6 +649,15 @@ export async function getServiceBillDetailsForPDF(id: string) {
           select: {
             candidateName: true,
             admissionNumber: true,
+            course: {
+              select: {
+                id: true,
+                name: true,
+                duration: true,
+                courseFee: true,
+                admissionFee: true,
+              },
+            },
           },
         },
       },

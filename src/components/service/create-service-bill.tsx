@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, User } from "lucide-react";
 import {
  Dialog,
  DialogContent,
@@ -40,6 +40,13 @@ import { CreateServiceBilling } from "@/types/service-billing";
 interface Customer {
  id: string;
  candidateName: string;
+ admissionNumber?: string;
+ course?: {
+  id: string;
+  name: string;
+  duration?: string | null;
+  courseFee?: number | null;
+ } | null;
 }
 
 interface Service {
@@ -235,15 +242,15 @@ export default function CreateServiceBillModal({
     >
      {/* Customer Selection */}
      <div className="space-y-2">
-      <Label htmlFor="customer-select">Select Customer / Site *</Label>
+      <Label htmlFor="customer-select">Select Customer *</Label>
       <Select
        value={serviceBillForm.watch("admissionId")}
        onValueChange={(value) =>
-        serviceBillForm.setValue("admissionId", value)
+        serviceBillForm.setValue("admissionId", value, { shouldValidate: true })
        }
       >
        <SelectTrigger id="customer-select">
-        <SelectValue placeholder="Choose customer / installation site" />
+        <SelectValue placeholder="Choose customer" />
        </SelectTrigger>
        <SelectContent>
         {customers.length === 0 ? (
@@ -253,7 +260,14 @@ export default function CreateServiceBillModal({
         ) : (
          customers.map((customer) => (
           <SelectItem key={customer.id} value={customer.id}>
-           {customer.candidateName}
+           <div className="flex items-center justify-between w-full gap-3">
+            <span className="font-medium">{customer.candidateName}</span>
+            {customer.admissionNumber && (
+             <span className="text-xs text-muted-foreground font-mono">
+              {customer.admissionNumber}
+             </span>
+            )}
+           </div>
           </SelectItem>
          ))
         )}
@@ -264,6 +278,24 @@ export default function CreateServiceBillModal({
         {serviceBillForm.formState.errors.admissionId.message}
        </p>
       )}
+
+      {/* Selected Customer Preview */}
+      {(() => {
+       const selectedId = serviceBillForm.watch("admissionId");
+       const selectedCust = customers.find((c) => c.id === selectedId);
+       if (!selectedCust) return null;
+       return (
+        <div className="rounded-lg border border-border/70 bg-muted/30 p-2.5 text-xs flex items-center justify-between">
+         <div className="flex items-center gap-2">
+          <User className="h-4 w-4 text-primary" />
+          <span className="font-semibold text-foreground">{selectedCust.candidateName}</span>
+          {selectedCust.admissionNumber && (
+           <span className="text-muted-foreground ml-1.5 font-mono">({selectedCust.admissionNumber})</span>
+          )}
+         </div>
+        </div>
+       );
+      })()}
      </div>
 
      {/* Bill Date */}
