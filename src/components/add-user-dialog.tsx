@@ -41,7 +41,7 @@ export function AddUserDialog({ roles, branches }: AddUserDialogProps) {
           Add User
         </Button>
       </DialogTrigger>
-      <DialogContent className="!max-w-md space-y-4">
+      <DialogContent className="!max-w-xl max-h-[90vh] overflow-y-auto space-y-4">
         <DialogHeader>
           <DialogTitle>Add User</DialogTitle>
           <DialogDescription>Add a new user to the system</DialogDescription>

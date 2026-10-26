@@ -1,4 +1,4 @@
-// src/actions/auth.ts
+// src/lib/actions/auth.ts
 'use server';
 
 import { actionClient } from '@/lib/safe-action';
@@ -9,34 +9,117 @@ import { redirect } from 'next/navigation';
 import { cookies, headers } from 'next/headers';
 import { loginSchema, userFormSchema } from '@/schema/user-schema';
 import { z } from 'zod';
+import { SOFTWARE_POSITIONS } from '@/constants/permissions';
+import { cacheService } from '@/lib/cache/cache-service';
+
+/**
+ * Ensures standard CRM software positions are populated in the database.
+ */
+async function ensureStandardRolesExist() {
+  try {
+    for (const pos of SOFTWARE_POSITIONS) {
+      const existing = await prisma.role.findFirst({
+        where: {
+          OR: [{ id: `role_${pos.id}` }, { name: pos.id }],
+        },
+      });
+
+      if (!existing) {
+        await prisma.role.create({
+          data: {
+            id: `role_${pos.id}`,
+            name: pos.id,
+            description: pos.description,
+            permissions: pos.defaultPermissions,
+            updatedAt: new Date(),
+          },
+        });
+      }
+    }
+  } catch (err) {
+    console.error('Error syncing standard software positions:', err);
+  }
+}
 
 // Create user action
 export const createUserAction = actionClient
   .inputSchema(userFormSchema)
-  .action(async ({ parsedInput: { name, email, password, role, branch } }) => {
-    const { user } = await auth.api.createUser({
-      body: {
-        name,
-        email,
-        password,
-        role: role as 'admin' | 'user',
-        data: {
-          branch,
+  .action(async ({ parsedInput: { name, email, password, role, branch, permissions } }) => {
+    try {
+      // 1. Create base user
+      const { user } = await auth.api.createUser({
+        body: {
+          name,
+          email,
+          password,
+          role,
+          data: {
+            branch,
+          },
         },
-      },
-    });
+      });
 
-    if (!user) {
+      if (!user) {
+        return returnValidationErrors(userFormSchema, {
+          _errors: ['Failed to create user account'],
+        });
+      }
+
+      // 2. Resolve or create custom role with permissions
+      await ensureStandardRolesExist();
+
+      const defaultPos = SOFTWARE_POSITIONS.find((p) => p.id === role);
+      const effectivePermissions =
+        permissions && permissions.length > 0
+          ? permissions
+          : defaultPos?.defaultPermissions || ['dashboard'];
+
+      // Find or create role record
+      let roleRecord = await prisma.role.findFirst({
+        where: {
+          OR: [{ id: `role_${role}` }, { name: role }],
+        },
+      });
+
+      // If user has customized permissions different from the standard role, create a user-specific role
+      if (
+        permissions &&
+        permissions.length > 0 &&
+        JSON.stringify(permissions.sort()) !== JSON.stringify((defaultPos?.defaultPermissions || []).sort())
+      ) {
+        roleRecord = await prisma.role.create({
+          data: {
+            id: `role_${user.id}`,
+            name: `${role}_${user.name.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+            description: `Custom permissions for ${user.name}`,
+            permissions: effectivePermissions,
+            updatedAt: new Date(),
+          },
+        });
+      }
+
+      // Link user with roleId
+      if (roleRecord) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            role,
+            roleId: roleRecord.id,
+          },
+        });
+      }
+
+      return {
+        success: true,
+        message: `User account created successfully with ${defaultPos?.title || role} access`,
+        user,
+      };
+    } catch (error: any) {
+      console.error('Create user action error:', error);
       return returnValidationErrors(userFormSchema, {
-        _errors: ['Failed to create user'],
+        _errors: [error.message || 'An error occurred while creating the user'],
       });
     }
-
-    return {
-      success: true,
-      message: 'User created successfully',
-      user,
-    };
   });
 
 // Update user branch action
@@ -54,6 +137,8 @@ export const updateUserBranchAction = actionClient
         data: { branch: branchId },
       });
 
+      await cacheService.delete(`user:${userId}`);
+
       return {
         success: true,
         message: 'User branch updated successfully',
@@ -67,7 +152,7 @@ export const updateUserBranchAction = actionClient
     }
   });
 
-// Update user role action
+// Update user role and permissions action
 export const updateUserRoleAction = actionClient
   .inputSchema(
     z.object({
@@ -77,20 +162,116 @@ export const updateUserRoleAction = actionClient
   )
   .action(async ({ parsedInput: { userId, role } }) => {
     try {
+      await ensureStandardRolesExist();
+
+      const defaultPos = SOFTWARE_POSITIONS.find((p) => p.id === role);
+      const roleRecord = await prisma.role.findFirst({
+        where: {
+          OR: [{ id: `role_${role}` }, { name: role }],
+        },
+      });
+
       await prisma.user.update({
         where: { id: userId },
-        data: { role },
+        data: {
+          role,
+          ...(roleRecord ? { roleId: roleRecord.id } : {}),
+        },
       });
+
+      await cacheService.delete(`user:${userId}`);
 
       return {
         success: true,
-        message: `User role updated to ${role.toUpperCase()}`,
+        message: `User position updated to ${defaultPos?.title || role.toUpperCase()}`,
       };
     } catch (error) {
       console.error('Update user role error:', error);
       return {
         success: false,
-        message: 'Failed to update user role',
+        message: 'Failed to update user position',
+      };
+    }
+  });
+
+// Granular permissions configuration action
+export const updateUserPermissionsAction = actionClient
+  .inputSchema(
+    z.object({
+      userId: z.string(),
+      role: z.string().optional(),
+      permissions: z.array(z.string()),
+    })
+  )
+  .action(async ({ parsedInput: { userId, role, permissions } }) => {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: { userRole: true },
+      });
+
+      if (!user) {
+        return { success: false, message: 'User not found' };
+      }
+
+      const activeRoleSlug = role || user.role || 'custom';
+
+      // Check if user already has their own dedicated role or standard role
+      let targetRoleId = user.roleId;
+
+      if (user.userRole && user.userRole.id === `role_${userId}`) {
+        // Update user's dedicated role permissions directly
+        await prisma.role.update({
+          where: { id: user.userRole.id },
+          data: {
+            name: `${activeRoleSlug}_${user.name.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+            permissions,
+            updatedAt: new Date(),
+          },
+        });
+      } else {
+        // Create or assign a dedicated role record for this user with exact custom permissions
+        const customRole = await prisma.role.upsert({
+          where: { id: `role_${userId}` },
+          create: {
+            id: `role_${userId}`,
+            name: `${activeRoleSlug}_${user.name.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+            description: `Custom permissions for ${user.name}`,
+            permissions,
+            updatedAt: new Date(),
+          },
+          update: {
+            name: `${activeRoleSlug}_${user.name.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+            permissions,
+            updatedAt: new Date(),
+          },
+        });
+        targetRoleId = customRole.id;
+      }
+
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          role: activeRoleSlug,
+          roleId: targetRoleId,
+        },
+      });
+
+      // Clear caches
+      await cacheService.delete(`user:${userId}`);
+      if (user.email) {
+        await cacheService.delete(`user:email:${user.email}`);
+      }
+
+      return {
+        success: true,
+        message: `Access permissions for ${user.name} successfully updated (${permissions.length} modules active)`,
+      };
+    } catch (error: any) {
+      console.error('Update user permissions error:', error);
+      return {
+        success: false,
+        message: error.message || 'Failed to update access permissions',
       };
     }
   });
@@ -107,6 +288,8 @@ export const deleteUserAction = actionClient
       await prisma.user.delete({
         where: { id: userId },
       });
+
+      await cacheService.delete(`user:${userId}`);
 
       return {
         success: true,
@@ -164,6 +347,9 @@ export const updateProfileAction = actionClient
         },
       });
 
+      await cacheService.delete(`user:${session.user.id}`);
+      await cacheService.delete(`user:email:${email}`);
+
       return {
         success: true,
         message: 'Profile updated successfully',
@@ -204,10 +390,10 @@ export const loginAction = actionClient
           email: true,
           role: true,
           branch: true,
-        }
+          userRole: true,
+        },
       });
 
-      // The nextCookies plugin will automatically handle setting the session cookies
       return {
         success: true,
         message: 'Login successful',
@@ -240,6 +426,9 @@ export const getAllUsers = async () => {
   try {
     return await prisma.user.findMany({
       orderBy: { createdAt: 'desc' },
+      include: {
+        userRole: true,
+      },
     });
   } catch (error) {
     console.error('Failed to fetch users:', error);
@@ -249,6 +438,7 @@ export const getAllUsers = async () => {
 
 export const getAllRoles = async () => {
   try {
+    await ensureStandardRolesExist();
     return await prisma.role.findMany({
       orderBy: { name: 'asc' },
     });

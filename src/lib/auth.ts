@@ -55,12 +55,14 @@ export const auth = {
         let user = userId
           ? await prisma.user.findUnique({
               where: { id: userId },
+              include: { userRole: true },
             })
           : null;
 
         if (!user && userEmail) {
           user = await prisma.user.findUnique({
             where: { email: userEmail },
+            include: { userRole: true },
           });
         }
 

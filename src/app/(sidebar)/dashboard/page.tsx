@@ -29,6 +29,8 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { PageContainer, PageHeader } from '@/components/ui/page-header';
 import { KpiCard } from '@/components/dashboard/kpi-card';
+import { getPositionDefinition, hasFeatureAccess } from '@/lib/permissions';
+import { IconBriefcase, IconFileInvoice, IconFileDollar } from '@tabler/icons-react';
 
 export default async function Dashboard() {
   let session = null;
@@ -72,6 +74,16 @@ export default async function Dashboard() {
     day: 'numeric',
   });
 
+  const userPosition = getPositionDefinition(session.user.role);
+  const canAccessEnquiries = hasFeatureAccess(session.user, 'enquiries');
+  const canAccessJobOrders = hasFeatureAccess(session.user, 'job_orders');
+  const canAccessFollowUps = hasFeatureAccess(session.user, 'follow_ups');
+  const canAccessInvoices = hasFeatureAccess(session.user, 'invoices');
+  const canAccessServices = hasFeatureAccess(session.user, 'services');
+  const canAccessProjects = hasFeatureAccess(session.user, 'projects');
+  const canAccessExpenses = hasFeatureAccess(session.user, 'expenses');
+  const canAccessReports = hasFeatureAccess(session.user, 'reports');
+
   return (
     <PageContainer>
       {/* Top Welcome Header */}
@@ -81,29 +93,57 @@ export default async function Dashboard() {
         badge={
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="font-semibold uppercase tracking-wider text-[10px]">
-              {session.user.role?.toUpperCase() || 'TELECALLER'}
+              {userPosition.title}
             </Badge>
-            {session.user.role === 'executive' && session.user.branch && (
+            {session.user.branch && (
               <Badge variant="outline" className="text-[11px]">
-                {branchName || session.user.branch}
+                {branchName || 'Branch User'}
               </Badge>
             )}
           </div>
         }
         actions={
           <>
-            <Button size="sm" variant="outline" asChild>
-              <Link href="/follow-ups">
-                <IconCalendarClock className="mr-1.5 h-4 w-4" />
-                Follow-ups
-              </Link>
-            </Button>
-            <Button size="sm" asChild>
-              <Link href="/enquiries">
-                <IconUsers className="mr-1.5 h-4 w-4" />
-                View Enquiries
-              </Link>
-            </Button>
+            {canAccessFollowUps && (
+              <Button size="sm" variant="outline" asChild>
+                <Link href="/follow-ups">
+                  <IconCalendarClock className="mr-1.5 h-4 w-4" />
+                  Follow-ups
+                </Link>
+              </Button>
+            )}
+            {canAccessEnquiries && (
+              <Button size="sm" asChild>
+                <Link href="/enquiries">
+                  <IconUsers className="mr-1.5 h-4 w-4" />
+                  View Enquiries
+                </Link>
+              </Button>
+            )}
+            {!canAccessEnquiries && canAccessJobOrders && (
+              <Button size="sm" asChild>
+                <Link href="/enquiries/job-orders/pending">
+                  <IconBriefcase className="mr-1.5 h-4 w-4" />
+                  Job Orders
+                </Link>
+              </Button>
+            )}
+            {!canAccessEnquiries && !canAccessJobOrders && canAccessInvoices && (
+              <Button size="sm" asChild>
+                <Link href="/invoices">
+                  <IconFileInvoice className="mr-1.5 h-4 w-4" />
+                  Invoices
+                </Link>
+              </Button>
+            )}
+            {!canAccessEnquiries && !canAccessJobOrders && !canAccessInvoices && canAccessServices && (
+              <Button size="sm" asChild>
+                <Link href="/services">
+                  <IconFileDollar className="mr-1.5 h-4 w-4" />
+                  Service Billing
+                </Link>
+              </Button>
+            )}
           </>
         }
       />
@@ -317,66 +357,76 @@ export default async function Dashboard() {
             <CardDescription className="text-xs">Direct workflow navigations</CardDescription>
           </CardHeader>
           <CardContent className="space-y-1.5">
-            {session.user.role === 'telecaller' ? (
-              <>
-                <Button variant="ghost" className="w-full justify-start h-9 rounded-lg hover:bg-muted text-sm font-medium" asChild>
-                  <Link href="/my-enquiries">
-                    <IconEye className="mr-2.5 size-4 text-muted-foreground" />
-                    View My Enquiries
-                  </Link>
-                </Button>
-                <Button variant="ghost" className="w-full justify-start h-9 rounded-lg hover:bg-muted text-sm font-medium" asChild>
-                  <Link href="/follow-ups?filter=today">
-                    <IconCalendarClock className="mr-2.5 size-4 text-muted-foreground" />
-                    Today&apos;s Follow-ups
-                  </Link>
-                </Button>
-                <Button variant="ghost" className="w-full justify-start h-9 rounded-lg hover:bg-muted text-sm font-medium" asChild>
-                  <Link href="/call-register">
-                    <IconPhoneCall className="mr-2.5 size-4 text-muted-foreground" />
-                    Call Register
-                  </Link>
-                </Button>
-                <Button variant="ghost" className="w-full justify-start h-9 rounded-lg hover:bg-muted text-sm font-medium" asChild>
-                  <Link href="/follow-ups?filter=overdue">
-                    <IconClockExclamation className="mr-2.5 size-4 text-muted-foreground" />
-                    Overdue Follow-ups
-                  </Link>
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button variant="ghost" className="w-full justify-start h-9 rounded-lg hover:bg-muted text-sm font-medium" asChild>
-                  <Link href="/enquiries">
-                    <IconEye className="mr-2.5 size-4 text-muted-foreground" />
-                    View All Enquiries
-                  </Link>
-                </Button>
-                <Button variant="ghost" className="w-full justify-start h-9 rounded-lg hover:bg-muted text-sm font-medium" asChild>
-                  <Link href="/follow-ups">
-                    <IconCalendarClock className="mr-2.5 size-4 text-muted-foreground" />
-                    Follow-ups Manager
-                  </Link>
-                </Button>
-                <Button variant="ghost" className="w-full justify-start h-9 rounded-lg hover:bg-muted text-sm font-medium" asChild>
-                  <Link href="/admissions">
-                    <IconUserCheck className="mr-2.5 size-4 text-muted-foreground" />
-                    Admissions & Receipts
-                  </Link>
-                </Button>
-                <Button variant="ghost" className="w-full justify-start h-9 rounded-lg hover:bg-muted text-sm font-medium" asChild>
-                  <Link href="/reports">
-                    <IconTrendingUp className="mr-2.5 size-4 text-muted-foreground" />
-                    Analytics & Reports
-                  </Link>
-                </Button>
-                <Button variant="ghost" className="w-full justify-start h-9 rounded-lg hover:bg-muted text-sm font-medium" asChild>
-                  <Link href="/expenses">
-                    <IconReceipt className="mr-2.5 size-4 text-muted-foreground" />
-                    Expense Tracker
-                  </Link>
-                </Button>
-              </>
+            {canAccessEnquiries && (
+              <Button variant="ghost" className="w-full justify-start h-9 rounded-lg hover:bg-muted text-sm font-medium" asChild>
+                <Link href="/enquiries">
+                  <IconEye className="mr-2.5 size-4 text-muted-foreground" />
+                  View All Enquiries
+                </Link>
+              </Button>
+            )}
+
+            {canAccessJobOrders && (
+              <Button variant="ghost" className="w-full justify-start h-9 rounded-lg hover:bg-muted text-sm font-medium" asChild>
+                <Link href="/enquiries/job-orders/pending">
+                  <IconBriefcase className="mr-2.5 size-4 text-muted-foreground" />
+                  Pending Job Orders
+                </Link>
+              </Button>
+            )}
+
+            {canAccessFollowUps && (
+              <Button variant="ghost" className="w-full justify-start h-9 rounded-lg hover:bg-muted text-sm font-medium" asChild>
+                <Link href="/follow-ups?filter=today">
+                  <IconCalendarClock className="mr-2.5 size-4 text-muted-foreground" />
+                  Today&apos;s Follow-ups
+                </Link>
+              </Button>
+            )}
+
+            {canAccessInvoices && (
+              <Button variant="ghost" className="w-full justify-start h-9 rounded-lg hover:bg-muted text-sm font-medium" asChild>
+                <Link href="/invoices">
+                  <IconFileInvoice className="mr-2.5 size-4 text-muted-foreground" />
+                  Invoices & Payments
+                </Link>
+              </Button>
+            )}
+
+            {canAccessServices && (
+              <Button variant="ghost" className="w-full justify-start h-9 rounded-lg hover:bg-muted text-sm font-medium" asChild>
+                <Link href="/services">
+                  <IconFileDollar className="mr-2.5 size-4 text-muted-foreground" />
+                  Service Billing
+                </Link>
+              </Button>
+            )}
+
+            {canAccessProjects && (
+              <Button variant="ghost" className="w-full justify-start h-9 rounded-lg hover:bg-muted text-sm font-medium" asChild>
+                <Link href="/admissions">
+                  <IconUserCheck className="mr-2.5 size-4 text-muted-foreground" />
+                  Site Surveys & Projects
+                </Link>
+              </Button>
+            )}
+
+            {canAccessReports && (
+              <Button variant="ghost" className="w-full justify-start h-9 rounded-lg hover:bg-muted text-sm font-medium" asChild>
+                <Link href="/reports">
+                  <IconTrendingUp className="mr-2.5 size-4 text-muted-foreground" />
+                  Analytics & Reports
+                </Link>
+              </Button>
+            )}
+
+            {canAccessExpenses && (
+              <Button variant="ghost" className="w-full justify-start h-9 rounded-lg hover:bg-muted text-sm font-medium" asChild>
+                <Link href="/expenses">
+                  <IconReceipt className="mr-2.5 size-4 text-muted-foreground" />
+                  Expense Tracker
+                </Link>
+              </Button>
             )}
           </CardContent>
         </Card>

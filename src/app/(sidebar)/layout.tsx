@@ -23,7 +23,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  let user: User | null = null;
+  let user: (User & { userRole?: any }) | null = null;
   const cookieStore = await cookies();
   const token = cookieStore.get('token')?.value;
   const userCookie = cookieStore.get('user')?.value;
@@ -33,17 +33,19 @@ export default async function RootLayout({
       const decoded = jwt.decode(token) as { id: string; email: string; role: string; branchId?: string } | null;
       if (decoded?.id || decoded?.email) {
         const cacheKey = decoded.id ? `user:${decoded.id}` : `user:email:${decoded.email}`;
-        user = await cacheService.getOrSet<User | null>(cacheKey, 60, async () => {
-          let found: User | null = null;
+        user = await cacheService.getOrSet<(User & { userRole?: any }) | null>(cacheKey, 60, async () => {
+          let found: any = null;
           if (decoded.id) {
-            found = (await prisma.user.findUnique({
+            found = await prisma.user.findUnique({
               where: { id: decoded.id },
-            })) as unknown as User;
+              include: { userRole: true },
+            });
           }
           if (!found && decoded.email) {
-            found = (await prisma.user.findUnique({
+            found = await prisma.user.findUnique({
               where: { email: decoded.email },
-            })) as unknown as User;
+              include: { userRole: true },
+            });
           }
           return found;
         });
@@ -58,17 +60,19 @@ export default async function RootLayout({
       const parsed = JSON.parse(decodeURIComponent(userCookie));
       if (parsed?.id || parsed?.email) {
         const cacheKey = parsed.id ? `user:${parsed.id}` : `user:email:${parsed.email}`;
-        user = await cacheService.getOrSet<User | null>(cacheKey, 60, async () => {
-          let found: User | null = null;
+        user = await cacheService.getOrSet<(User & { userRole?: any }) | null>(cacheKey, 60, async () => {
+          let found: any = null;
           if (parsed.id) {
-            found = (await prisma.user.findUnique({
+            found = await prisma.user.findUnique({
               where: { id: parsed.id },
-            })) as unknown as User;
+              include: { userRole: true },
+            });
           }
           if (!found && parsed.email) {
-            found = (await prisma.user.findUnique({
+            found = await prisma.user.findUnique({
               where: { email: parsed.email },
-            })) as unknown as User;
+              include: { userRole: true },
+            });
           }
           return found;
         });

@@ -23,9 +23,10 @@ import {
 } from '@/components/ui/sidebar';
 import { getInitials } from '@/lib/utils';
 import type { UserProfile } from '@/types/navigation';
+import { getPositionDefinition } from '@/lib/permissions';
 
 interface NavUserProps {
-  user: UserProfile;
+  user: UserProfile & { role?: string | null };
 }
 
 export function NavUser({ user }: NavUserProps) {
@@ -33,6 +34,7 @@ export function NavUser({ user }: NavUserProps) {
   const { execute: executeLogout, isExecuting: isLoggingOut } = useAction(logoutAction);
 
   const initials = getInitials(user.name);
+  const position = getPositionDefinition(user.role);
 
   const handleLogout = () => {
     executeLogout();
@@ -51,11 +53,16 @@ export function NavUser({ user }: NavUserProps) {
                 <AvatarImage src={user.image || undefined} alt={user.name} />
                 <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
               </Avatar>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{user.name}</span>
-                <span className="text-muted-foreground truncate text-xs">{user.email}</span>
+              <div className="grid flex-1 text-left text-sm leading-tight min-w-0">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="truncate font-semibold text-xs">{user.name}</span>
+                </div>
+                <span className="text-[11px] text-primary font-medium truncate">
+                  {position.shortTitle}
+                </span>
+                <span className="text-muted-foreground truncate text-[10px]">{user.email}</span>
               </div>
-              <IconDotsVertical className="ml-auto size-4" />
+              <IconDotsVertical className="ml-auto size-4 shrink-0" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -65,14 +72,17 @@ export function NavUser({ user }: NavUserProps) {
             sideOffset={4}
           >
             <DropdownMenuLabel className="p-0 font-normal">
-              <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+              <div className="flex items-center gap-2 px-2 py-2 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
                   <AvatarImage src={user.image || undefined} alt={user.name} />
                   <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
                 </Avatar>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{user.name}</span>
-                  <span className="text-muted-foreground truncate text-xs">{user.email}</span>
+                <div className="grid flex-1 text-left text-sm leading-tight min-w-0">
+                  <span className="truncate font-semibold text-xs">{user.name}</span>
+                  <span className="text-[11px] font-medium text-primary truncate">
+                    {position.title}
+                  </span>
+                  <span className="text-muted-foreground truncate text-[10px]">{user.email}</span>
                 </div>
               </div>
             </DropdownMenuLabel>
