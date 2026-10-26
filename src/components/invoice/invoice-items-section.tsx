@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,8 +13,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Trash2, Save, X } from 'lucide-react';
+import { Plus, Trash2, Save, X, Zap } from 'lucide-react';
 import { addInvoiceItemRecord, updateInvoiceItemRecord, deleteInvoiceItemRecord } from '@/lib/api/invoice-api';
+import { getInvoiceProductCatalog, RequiredCapacity } from '@/server/actions/invoice-catalog-actions';
 import { toast } from 'sonner';
 import { InvoiceItem } from '@/types/invoice';
 import { formatCurrency } from '@/lib/utils';
@@ -38,6 +39,7 @@ interface EditingItem extends InvoiceItem {
 
 export function InvoiceItemsSection({ invoiceId, items, onItemsChange }: InvoiceItemsSectionProps) {
   const [showAddForm, setShowAddForm] = useState(false);
+  const [capacities, setCapacities] = useState<RequiredCapacity[]>([]);
   const [newItem, setNewItem] = useState<NewItemForm>({
     itemDescription: '',
     quantity: 1,
@@ -45,6 +47,19 @@ export function InvoiceItemsSection({ invoiceId, items, onItemsChange }: Invoice
   });
   const [editingItems, setEditingItems] = useState<Record<string, EditingItem>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    getInvoiceProductCatalog()
+      .then((res) => {
+        if (!active) return;
+        if (res.requiredCapacities) setCapacities(res.requiredCapacities);
+      })
+      .catch((err) => console.warn('Could not load required capacities:', err));
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleAddItem = async () => {
     if (!newItem.itemDescription.trim() || newItem.quantity <= 0 || newItem.unitPrice < 0) {
@@ -172,6 +187,49 @@ export function InvoiceItemsSection({ invoiceId, items, onItemsChange }: Invoice
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Select from Required Capacities */}
+              {capacities.length > 0 && (
+                <div className="lg:col-span-12 space-y-1.5 rounded-lg border bg-amber-500/5 border-amber-200/60 dark:border-amber-900/60 p-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold text-amber-900 dark:text-amber-400 flex items-center gap-1.5">
+                      <Zap className="size-3.5 fill-amber-500 text-amber-500" />
+                      Insert Required Capacity (Admin Data Management)
+                    </Label>
+                    <span className="text-[11px] text-muted-foreground">{capacities.length} capacities configured</span>
+                  </div>
+                  <select
+                    aria-label="Insert Required Capacity"
+                    value=""
+                    onChange={(e) => {
+                      const cap = capacities.find((candidate) => candidate.id === e.target.value);
+                      if (cap) {
+                        const grandTotal = cap.grandTotal || cap.courseFee + cap.admissionFee;
+                        const brandStr = cap.brand ? ` (${cap.brand})` : '';
+                        const desc =
+                          cap.description ||
+                          `${cap.name} On-Grid Solar System${brandStr}. KSEB Fee: ₹${cap.admissionFee.toLocaleString('en-IN')}. Grand Total: ₹${grandTotal.toLocaleString('en-IN')}.`;
+                        setNewItem({
+                          itemDescription: desc,
+                          quantity: 1,
+                          unitPrice: grandTotal,
+                        });
+                      }
+                    }}
+                    className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                  >
+                    <option value="">⚡ Choose a Required Capacity configured by Admin (optional)...</option>
+                    {capacities.map((cap) => {
+                      const grandTotal = cap.grandTotal || cap.courseFee + cap.admissionFee;
+                      return (
+                        <option key={cap.id} value={cap.id}>
+                          {cap.name}{cap.brand ? ` (${cap.brand})` : ''} · Full Package: ₹{grandTotal.toLocaleString('en-IN')}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+              )}
+
               {/* Item Description - Takes more space */}
               <div className="lg:col-span-5 space-y-2">
                 <Label className="px-1 text-sm font-medium text-gray-700 flex items-center gap-1">

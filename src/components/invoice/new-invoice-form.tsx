@@ -7,7 +7,7 @@ import { addDays, endOfMonth, format, addMonths } from 'date-fns';
 import { toast } from 'sonner';
 import {
   ArrowLeft, CalendarDays, Check, ChevronDown, FileCheck, FileText, GripVertical, Info,
-  Plus, ScanLine, Search, Settings2, Sparkles, X,
+  Plus, ScanLine, Search, Settings2, Sparkles, X, Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { createInvoiceCustomer as createInvoiceCustomerRequest, createInvoiceCustomerFromAdmission, fetchInvoiceCustomers, getPaymentNumberPreview, InvoiceCustomer, saveInvoice as saveInvoiceRequest, sendInvoiceEmail } from '@/lib/api/invoice-api';
-import { getInvoiceProductCatalog, InvoiceProductItem, ProposalMatch } from '@/server/actions/invoice-catalog-actions';
+import { getInvoiceProductCatalog, InvoiceProductItem, ProposalMatch, RequiredCapacity } from '@/server/actions/invoice-catalog-actions';
 import { PaymentNumberSettingsDialog } from '@/components/invoice/invoice-payments';
 import { PageContainer, PageHeader } from '@/components/ui/page-header';
 
@@ -59,8 +59,12 @@ function CustomerSelect({ value, onChange, customers, loading, onNew }: { value:
 
 function InvoiceItemRow({ item, catalog, onChange, onRemove, onEnter }: { item: InvoiceItem; catalog: InvoiceProductItem[]; onChange: (item: InvoiceItem) => void; onRemove: () => void; onEnter: () => void }) {
   const amount = item.quantity * item.rate * (1 - item.discount / 100);
+  const capacities = useMemo(() => catalog.filter((c) => c.category === 'capacity'), [catalog]);
+  const proposals = useMemo(() => catalog.filter((c) => c.category === 'proposal'), [catalog]);
+  const otherItems = useMemo(() => catalog.filter((c) => c.category !== 'capacity' && c.category !== 'proposal'), [catalog]);
+
   return <tr className="border-b last:border-0">
-    <td className="min-w-[280px] px-3 py-2"><div className="flex items-start gap-2"><GripVertical className="mt-2 size-4 shrink-0 text-muted-foreground/50" /><div className="flex size-10 shrink-0 items-center justify-center rounded border bg-muted/30 text-muted-foreground"><FileText className="size-4" /></div><div className="min-w-0 flex-1 space-y-1"><select aria-label="Solar product or proposal item" value="" onChange={(e) => { const entry = catalog.find((candidate) => candidate.id === e.target.value); if (entry) onChange({ ...item, description: entry.description || entry.name, rate: entry.price, ...(entry.quantity && entry.quantity > 0 ? { quantity: entry.quantity } : {}) }); }} className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"><option value="">{catalog.length ? 'Choose a solar product / proposal item (optional)' : 'Enter a custom item'}</option>{catalog.map((entry) => <option key={entry.id} value={entry.id}>{entry.name} · {currency(entry.price)}</option>)}</select><Textarea value={item.description} onChange={(e) => onChange({ ...item, description: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onEnter(); } }} placeholder="Solar system package, panel, inverter, or proposal item" className="min-h-12 resize-y" /></div></div></td>
+    <td className="min-w-[300px] px-3 py-2"><div className="flex items-start gap-2"><GripVertical className="mt-2 size-4 shrink-0 text-muted-foreground/50" /><div className="flex size-10 shrink-0 items-center justify-center rounded border bg-muted/30 text-muted-foreground"><FileText className="size-4" /></div><div className="min-w-0 flex-1 space-y-1"><select aria-label="Required capacity or product item" value="" onChange={(e) => { const entry = catalog.find((candidate) => candidate.id === e.target.value); if (entry) onChange({ ...item, description: entry.description || entry.name, rate: entry.price, ...(entry.quantity && entry.quantity > 0 ? { quantity: entry.quantity } : {}) }); }} className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"><option value="">{catalog.length ? '⚡ Choose Required Capacity or Item (optional)' : 'Enter a custom item'}</option>{capacities.length > 0 && <optgroup label="⚡ Required Capacities (Admin Data Management)">{capacities.map((entry) => <option key={entry.id} value={entry.id}>{entry.name} · {currency(entry.price)}</option>)}</optgroup>}{proposals.length > 0 && <optgroup label="📄 Proposal Line Items (from Enquiries)">{proposals.map((entry) => <option key={entry.id} value={entry.id}>{entry.name} · {currency(entry.price)}</option>)}</optgroup>}{otherItems.length > 0 && <optgroup label="📦 Other Catalog Items">{otherItems.map((entry) => <option key={entry.id} value={entry.id}>{entry.name} · {currency(entry.price)}</option>)}</optgroup>}</select><Textarea value={item.description} onChange={(e) => onChange({ ...item, description: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onEnter(); } }} placeholder="Required solar capacity package, specifications, or proposal item" className="min-h-12 resize-y text-xs" /></div></div></td>
     <td className="min-w-24 px-2"><Input aria-label="Quantity" type="number" min="1" step="1" value={item.quantity} onChange={(e) => onChange({ ...item, quantity: Number(e.target.value) })} className="h-9 text-right" /></td>
     <td className="min-w-28 px-2"><div className="relative"><span className="absolute left-2.5 top-2 text-sm text-muted-foreground">₹</span><Input aria-label="Rate" type="number" min="0" step="0.01" value={item.rate || ''} onChange={(e) => onChange({ ...item, rate: Number(e.target.value) })} className="h-9 pl-6 text-right" /></div></td>
     <td className="min-w-24 px-2"><div className="relative"><Input aria-label="Discount percentage" type="number" min="0" max="100" value={item.discount || ''} onChange={(e) => onChange({ ...item, discount: Number(e.target.value) })} className="h-9 pr-7 text-right" /><span className="absolute right-2.5 top-2 text-xs text-muted-foreground">%</span></div></td>
@@ -90,6 +94,8 @@ export function NewInvoiceForm() {
   const router = useRouter();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [catalog, setCatalog] = useState<InvoiceProductItem[]>([]);
+  const [requiredCapacities, setRequiredCapacities] = useState<RequiredCapacity[]>([]);
+  const [capacitiesOpen, setCapacitiesOpen] = useState(false);
   const [matchingProposals, setMatchingProposals] = useState<ProposalMatch[]>([]);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [receivedPayment, setReceivedPayment] = useState(false);
@@ -144,6 +150,7 @@ export function NewInvoiceForm() {
         else toast.error(customerResult.reason instanceof Error ? customerResult.reason.message : 'Could not load customers.');
         if (catalogResult.status === 'fulfilled') {
           setCatalog(catalogResult.value.catalog);
+          setRequiredCapacities(catalogResult.value.requiredCapacities || []);
           setMatchingProposals(catalogResult.value.matchingProposals);
         } else {
           toast.error(catalogResult.reason instanceof Error ? catalogResult.reason.message : 'Could not load solar product catalog.');
@@ -165,12 +172,78 @@ export function NewInvoiceForm() {
     }).then((res) => {
       if (!active) return;
       if (res.catalog?.length) setCatalog(res.catalog);
+      if (res.requiredCapacities?.length) setRequiredCapacities(res.requiredCapacities);
       if (res.matchingProposals) setMatchingProposals(res.matchingProposals);
     }).catch((err) => {
       console.warn('Could not refresh customer proposal catalog:', err);
     });
     return () => { active = false; };
   }, [customer]);
+
+  const handleSelectCapacity = (cap: RequiredCapacity, mode: 'full' | 'split') => {
+    if (mode === 'split' && cap.admissionFee > 0 && cap.courseFee > 0) {
+      const brandStr = cap.brand ? ` (${cap.brand})` : '';
+      const emptyRowIndex = items.findIndex((it) => !it.description.trim());
+      const item1: InvoiceItem = {
+        id: emptyRowIndex !== -1 ? items[emptyRowIndex].id : nextId,
+        description: `${cap.name} On-Grid Solar System${brandStr} with Tier-1 Panels`,
+        quantity: 1,
+        rate: cap.courseFee,
+        discount: 0,
+        tax: 0,
+      };
+      const item2: InvoiceItem = {
+        id: emptyRowIndex !== -1 ? nextId : nextId + 1,
+        description: `${cap.name} KSEB Net Metering, Feasibility & Testing Fee`,
+        quantity: 1,
+        rate: cap.admissionFee,
+        discount: 0,
+        tax: 0,
+      };
+
+      if (emptyRowIndex !== -1) {
+        setItems((current) => [
+          ...current.slice(0, emptyRowIndex),
+          item1,
+          ...current.slice(emptyRowIndex + 1),
+          item2,
+        ]);
+        setNextId((id) => id + 2);
+      } else {
+        setItems((current) => [...current, item1, item2]);
+        setNextId((id) => id + 2);
+      }
+      toast.success(`Added ${cap.name} System Price and KSEB Fee line items.`);
+    } else {
+      const grandTotal = cap.grandTotal || cap.courseFee + cap.admissionFee;
+      const brandStr = cap.brand ? ` (${cap.brand})` : '';
+      const desc =
+        cap.description ||
+        `${cap.name} On-Grid Solar System${brandStr}. KSEB Fee: ₹${cap.admissionFee.toLocaleString('en-IN')}. Grand Total: ₹${grandTotal.toLocaleString('en-IN')}.`;
+      const emptyRowIndex = items.findIndex((it) => !it.description.trim());
+      const newItem: InvoiceItem = {
+        id: emptyRowIndex !== -1 ? items[emptyRowIndex].id : nextId,
+        description: desc,
+        quantity: 1,
+        rate: grandTotal,
+        discount: 0,
+        tax: 0,
+      };
+
+      if (emptyRowIndex !== -1) {
+        setItems((current) => [
+          ...current.slice(0, emptyRowIndex),
+          newItem,
+          ...current.slice(emptyRowIndex + 1),
+        ]);
+      } else {
+        setItems((current) => [...current, newItem]);
+        setNextId((id) => id + 1);
+      }
+      toast.success(`Added ${cap.name} Solar System Full Package to invoice.`);
+    }
+    setCapacitiesOpen(false);
+  };
   useEffect(() => {
     if (receivedPayment && !receivedAmountEdited) setReceivedAmount(payableTotal.toFixed(2));
   }, [receivedPayment, receivedAmountEdited, payableTotal]);
@@ -262,7 +335,26 @@ export function NewInvoiceForm() {
       <Section title="GST Details" action={<span className="text-xs text-muted-foreground">Optional · GSTIN is not required</span>}>
         <div className="max-w-xl"><Field label="GSTIN (optional)"><Input value={gstin} onChange={(e) => setGstin(e.target.value)} placeholder="Enter GSTIN" /></Field></div>
       </Section>
-      <Section title="Solar Products & Proposal Items" action={<Button type="button" size="sm" variant="outline" onClick={() => setScannerOpen(true)}><ScanLine className="mr-2 size-4" />Scan item</Button>}>
+      <Section
+        title="Required Capacities & Invoice Items"
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setCapacitiesOpen(true)}
+              className="gap-1.5 text-xs font-medium border-amber-300 dark:border-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-foreground"
+            >
+              <Zap className="size-3.5 text-amber-500 fill-amber-500" />
+              Required Capacities ({requiredCapacities.length})
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => setScannerOpen(true)}>
+              <ScanLine className="mr-2 size-4" />Scan item
+            </Button>
+          </div>
+        }
+      >
         {matchingProposals.length > 0 && (
           <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -320,10 +412,135 @@ export function NewInvoiceForm() {
     <footer className="sticky bottom-0 z-10 -mx-4 mt-6 flex flex-wrap items-center justify-between gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"><div className="flex flex-wrap items-center gap-2"><Button type="button" variant="outline" onClick={() => void saveInvoice('DRAFT')} disabled={busy}>{busy ? 'Saving…' : 'Save as Draft'}</Button><Button type="button" onClick={() => void saveInvoice('SENT')} disabled={busy}>{busy ? 'Saving…' : 'Save and Send'}</Button><Button type="button" variant="ghost" onClick={() => askLeave('/invoices')}>Cancel</Button></div></footer>
     <Dialog open={preferencesOpen} onOpenChange={setPreferencesOpen}><DialogContent><DialogHeader><DialogTitle>Invoice Number Preferences</DialogTitle><DialogDescription>Choose how invoice numbers are assigned.</DialogDescription></DialogHeader><div className="space-y-3 py-2"><label className="flex cursor-pointer items-start gap-3 rounded-md border p-3"><input type="radio" checked={numberMode === 'auto'} onChange={() => setNumberMode('auto')} /><span><span className="block text-sm font-medium">Auto-generate</span><span className="text-xs text-muted-foreground">Numbers are assigned automatically.</span></span></label><label className="flex cursor-pointer items-start gap-3 rounded-md border p-3"><input type="radio" checked={numberMode === 'manual'} onChange={() => setNumberMode('manual')} /><span><span className="block text-sm font-medium">Enter manually</span><span className="text-xs text-muted-foreground">Set the invoice number for this invoice.</span></span></label></div><DialogFooter><Button type="button" onClick={() => setPreferencesOpen(false)}>Done</Button></DialogFooter></DialogContent></Dialog>
     <Dialog open={sendOpen} onOpenChange={setSendOpen}><DialogContent><DialogHeader><DialogTitle>Send Invoice</DialogTitle><DialogDescription>Invoice {invoiceNumber} is saved as a draft. Send the PDF to the customer.</DialogDescription></DialogHeader><div className="space-y-3 py-2"><Field label="To"><Input type="email" value={sendEmail} onChange={(event) => setSendEmail(event.target.value)} placeholder="customer@example.com" /></Field><Field label="Subject"><Input value={`Invoice ${invoiceNumber}`} readOnly /></Field></div><DialogFooter><Button type="button" variant="outline" onClick={() => { setSendOpen(false); if (createdId) router.push(`/invoices/${createdId}`); }}>Send later</Button><Button type="button" disabled={busy || !sendEmail.trim()} onClick={async () => { if (!createdId) return; setBusy(true); try { await sendInvoiceEmail(createdId, sendEmail.trim()); toast.success('Invoice emailed with the PDF attached.'); setSendOpen(false); router.push(`/invoices/${createdId}`); } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not send invoice.'); } finally { setBusy(false); } }}>{busy ? 'Sending…' : 'Send with PDF'}</Button></DialogFooter></DialogContent></Dialog>
+    <RequiredCapacitiesDialog open={capacitiesOpen} onOpenChange={setCapacitiesOpen} capacities={requiredCapacities} onSelectCapacity={handleSelectCapacity} />
     <InvoiceItemScanner open={scannerOpen} onOpenChange={setScannerOpen} onScan={handleScannedItem} />
     <PaymentNumberSettingsDialog open={paymentSettingsOpen} onOpenChange={setPaymentSettingsOpen} onSaved={(settings) => { setPaymentAutoGenerate(settings.autoGenerate); void getPaymentNumberPreview().then((preview) => setReceivedPaymentNumber(preview.paymentNumber)); }} />
     <NewCustomerDialog open={newCustomerOpen} onOpenChange={setNewCustomerOpen} onCreated={(created) => { setCustomers((current) => [...current.filter((entry) => entry.id !== created.id), created].sort((a, b) => a.name.localeCompare(b.name))); setCustomer(created); setGstin(created.gstin); }} />
   </PageContainer>;
+}
+
+function RequiredCapacitiesDialog({
+  open,
+  onOpenChange,
+  capacities,
+  onSelectCapacity,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  capacities: RequiredCapacity[];
+  onSelectCapacity: (capacity: RequiredCapacity, mode: 'full' | 'split') => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <div className="flex items-center gap-2.5">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600">
+              <Zap className="size-5 fill-amber-500" />
+            </div>
+            <div>
+              <DialogTitle className="text-base font-semibold">
+                Required Capacities (Admin Data Management)
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Solar system capacities configured in Admin &gt; Data Management. Select to add directly to this invoice.
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="space-y-3 py-2">
+          {capacities.length === 0 ? (
+            <div className="rounded-lg border border-dashed p-8 text-center space-y-2">
+              <p className="text-sm font-medium">No Required Capacities configured yet.</p>
+              <p className="text-xs text-muted-foreground">
+                Capacities created by the admin in Admin &gt; Data Management will appear here.
+              </p>
+              <Link
+                href="/admin/data-management"
+                className="mt-2 inline-flex items-center text-xs text-primary font-medium hover:underline"
+              >
+                Go to Admin Data Management &rarr;
+              </Link>
+            </div>
+          ) : (
+            <div className="grid gap-3">
+              {capacities.map((cap) => {
+                const grandTotal = cap.grandTotal || cap.courseFee + cap.admissionFee;
+                return (
+                  <div
+                    key={cap.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border bg-card p-3.5 hover:border-primary/50 transition-colors"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold text-sm text-foreground">{cap.name}</span>
+                        {cap.brand && (
+                          <span className="rounded bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                            {cap.brand} Panels
+                          </span>
+                        )}
+                        {cap.afterSubsidy && (
+                          <span className="rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 text-[11px] font-medium">
+                            After Subsidy: {currency(cap.afterSubsidy)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+                        <span>System Price: <strong className="text-foreground">{currency(cap.courseFee)}</strong></span>
+                        {cap.admissionFee > 0 && (
+                          <span>KSEB Fee: <strong className="text-foreground">{currency(cap.admissionFee)}</strong></span>
+                        )}
+                        <span>Grand Total: <strong className="text-primary font-semibold">{currency(grandTotal)}</strong></span>
+                      </div>
+                      {cap.description && (
+                        <p className="text-xs text-muted-foreground/80 line-clamp-1">{cap.description}</p>
+                      )}
+                    </div>
+
+                    <div className="flex sm:flex-col gap-2 shrink-0">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => onSelectCapacity(cap, 'full')}
+                        className="text-xs h-8"
+                      >
+                        + Add Full ({currency(grandTotal)})
+                      </Button>
+                      {cap.admissionFee > 0 && cap.courseFee > 0 && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onSelectCapacity(cap, 'split')}
+                          className="text-xs h-8"
+                        >
+                          + Split (Sys + KSEB)
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="flex justify-between items-center pt-2 border-t text-xs text-muted-foreground">
+            <span>Configured in Admin Data Management</span>
+            <Link href="/admin/data-management" className="text-primary hover:underline">
+              Manage Capacities &rarr;
+            </Link>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 function InvoiceItemScanner({ open, onOpenChange, onScan }: { open: boolean; onOpenChange: (open: boolean) => void; onScan: (value: string) => boolean }) {

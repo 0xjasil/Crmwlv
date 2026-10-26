@@ -2,15 +2,28 @@
 
 import prisma from '@/lib/prisma';
 import { getProposals } from './proposal/proposal-actions';
-import { Proposal, ProposalItem } from '@/types/proposal';
+import { Proposal } from '@/types/proposal';
+
+export interface RequiredCapacity {
+  id: string;
+  name: string; // e.g. "3 KW"
+  brand?: string | null; // e.g. "WAREE"
+  courseFee: number;
+  admissionFee: number;
+  grandTotal: number;
+  afterSubsidy?: number | null;
+  description?: string | null;
+}
 
 export interface InvoiceProductItem {
   id: string;
   name: string;
   price: number;
-  category: 'proposal' | 'package' | 'component';
+  category: 'capacity' | 'proposal' | 'component';
   description?: string;
   quantity?: number;
+  capacityId?: string;
+  brand?: string;
   proposalId?: string;
   proposalNo?: string;
   clientName?: string;
@@ -41,13 +54,122 @@ export async function getInvoiceProductCatalog(customerQuery?: {
 }): Promise<{
   success: boolean;
   catalog: InvoiceProductItem[];
+  requiredCapacities: RequiredCapacity[];
   matchingProposals: ProposalMatch[];
 }> {
   try {
     const catalogItems: InvoiceProductItem[] = [];
+    const requiredCapacities: RequiredCapacity[] = [];
     const matchingProposals: ProposalMatch[] = [];
 
-    // 1. Fetch proposals created for enquiries / clients
+    // 1. Fetch Required Capacities created in /admin/data-management (Course table)
+    const courses = await prisma.course.findMany({
+      where: { NOT: { isActive: false } },
+      orderBy: [{ name: 'asc' }, { createdAt: 'desc' }],
+    });
+
+    for (const course of courses) {
+      const brandStr = course.duration ? ` (${course.duration})` : '';
+      const price = course.courseFee || 0;
+      const kseb = course.admissionFee || 0;
+      const grandTotal = price + kseb;
+      const afterSubsidy =
+        course.semesterFee !== null && course.semesterFee !== undefined
+          ? course.semesterFee
+          : price >= 150000 && !course.name.includes('3+5')
+          ? price - 78000
+          : null;
+
+      requiredCapacities.push({
+        id: course.id,
+        name: course.name,
+        brand: course.duration,
+        courseFee: price,
+        admissionFee: kseb,
+        grandTotal: grandTotal > 0 ? grandTotal : price,
+        afterSubsidy,
+        description: course.description,
+      });
+
+      // Full Package Option (Price + KSEB fee)
+      catalogItems.push({
+        id: `course-full-${course.id}`,
+        name: `${course.name} Solar System${brandStr} - Full Package`,
+        price: grandTotal > 0 ? grandTotal : price,
+        category: 'capacity',
+        capacityId: course.id,
+        brand: course.duration || undefined,
+        description:
+          course.description ||
+          `${course.name} On-Grid Solar System with ${course.duration || 'Tier-1'} Panels. KSEB Fee: ₹${kseb.toLocaleString('en-IN')}. Grand Total: ₹${grandTotal.toLocaleString('en-IN')}.`,
+      });
+
+      // If KSEB fee is defined, also allow selecting the system price alone
+      if (kseb > 0 && price > 0) {
+        catalogItems.push({
+          id: `course-sys-${course.id}`,
+          name: `${course.name} Solar System${brandStr} - System Price`,
+          price: price,
+          category: 'capacity',
+          capacityId: course.id,
+          brand: course.duration || undefined,
+          description: `${course.name} On-Grid Solar System with ${course.duration || 'Tier-1'} Panels.`,
+        });
+
+        // KSEB Net Metering line item
+        catalogItems.push({
+          id: `course-kseb-${course.id}`,
+          name: `${course.name} KSEB Net Metering & Feasibility Fee`,
+          price: kseb,
+          category: 'capacity',
+          capacityId: course.id,
+          description: `KSEB application registration, feasibility inspection, and bi-directional net meter testing for ${course.name} system.`,
+        });
+      }
+    }
+
+    // 2. If a specific customer/enquiry was selected, check if they have a preferred course in Enquiry
+    if (customerQuery?.id || customerQuery?.phone || customerQuery?.name) {
+      try {
+        const cleanId = customerQuery.id ? customerQuery.id.replace(/^(enquiry|admission|customer):/, '') : '';
+        const enquiry = await prisma.enquiry.findFirst({
+          where: {
+            OR: [
+              ...(cleanId ? [{ id: cleanId }] : []),
+              ...(customerQuery.phone ? [{ phone: customerQuery.phone }] : []),
+              ...(customerQuery.name ? [{ candidateName: customerQuery.name }] : []),
+            ],
+          },
+          include: { preferredCourse: true },
+        });
+
+        if (enquiry?.preferredCourse) {
+          const pref = enquiry.preferredCourse;
+          const prefBrand = pref.duration ? ` (${pref.duration})` : '';
+          const prefPrice = pref.courseFee || 0;
+          const prefKseb = pref.admissionFee || 0;
+          const prefTotal = prefPrice + prefKseb;
+
+          const prefItem: InvoiceProductItem = {
+            id: `enquiry-pref-${pref.id}`,
+            name: `⭐ [Enquiry Preferred] ${pref.name} Solar System${prefBrand}`,
+            price: prefTotal > 0 ? prefTotal : prefPrice,
+            category: 'capacity',
+            capacityId: pref.id,
+            description:
+              pref.description ||
+              `${pref.name} Solar System enquired by ${enquiry.candidateName}. KSEB Fee: ₹${prefKseb.toLocaleString('en-IN')}. Total: ₹${prefTotal.toLocaleString('en-IN')}.`,
+          };
+
+          // Prioritize enquiry preferred system at top of catalog
+          catalogItems.unshift(prefItem);
+        }
+      } catch (err) {
+        console.warn('Could not inspect enquiry preferred course:', err);
+      }
+    }
+
+    // 3. Fetch proposals created for enquiries / clients
     try {
       const proposalRes = await getProposals();
       const proposals: Proposal[] =
@@ -95,7 +217,7 @@ export async function getInvoiceProductCatalog(customerQuery?: {
           }
         }
 
-        // Add unique items from proposals to the catalog
+        // Add unique items from proposals to the catalog under 'proposal' category
         if (proposal.items && Array.isArray(proposal.items)) {
           for (const item of proposal.items) {
             if (item.description && item.description.trim()) {
@@ -125,118 +247,10 @@ export async function getInvoiceProductCatalog(customerQuery?: {
       console.warn('Could not load external proposals:', proposalErr);
     }
 
-    // 2. Fetch Solar System Packages & Products from Course (Required Capacities for Enquiries & Admissions)
-    const courses = await prisma.course.findMany({
-      where: { isActive: true },
-      orderBy: { name: 'asc' },
-    });
-
-    for (const course of courses) {
-      const brandStr = course.duration ? ` (${course.duration})` : '';
-      const price = course.courseFee || 0;
-      const kseb = course.admissionFee || 0;
-      const grandTotal = price + kseb;
-
-      catalogItems.push({
-        id: `course-pkg-${course.id}`,
-        name: `${course.name} On-Grid Solar System${brandStr}`,
-        price: price > 0 ? price : grandTotal,
-        category: 'package',
-        description:
-          course.description ||
-          `${course.name} On-Grid Solar System with ${course.duration || 'Tier-1'} Panels. KSEB Fee: ₹${kseb.toLocaleString('en-IN')}. Grand Total: ₹${grandTotal.toLocaleString('en-IN')}.`,
-      });
-    }
-
-    // 3. Add standard Solar System Components (Panels, Inverters, Structures, Net-metering)
-    const standardSolarComponents: InvoiceProductItem[] = [
-      {
-        id: 'comp-solar-panels',
-        name: 'Mono PERC Half-Cut Solar PV Modules (540W/550W)',
-        price: 18500,
-        category: 'component',
-        description: 'Tier-1 Mono PERC Bifacial/Monofacial Solar Panels with 25 Years Performance Warranty',
-      },
-      {
-        id: 'comp-solar-inverter',
-        name: 'On-Grid Solar String Inverter with Wi-Fi Monitoring',
-        price: 38000,
-        category: 'component',
-        description: 'Grid-tied solar inverter with dual MPPT, digital display, and remote monitoring app',
-      },
-      {
-        id: 'comp-solar-structure',
-        name: 'Solar Module Aluminium Mounting Structure & Fasteners',
-        price: 14000,
-        category: 'component',
-        description: 'Anodized aluminium rooftop mounting structure engineered for wind speed up to 150 km/h',
-      },
-      {
-        id: 'comp-ac-dc-db',
-        name: 'ACDB & DCDB Distribution Box with SPD Protection',
-        price: 8500,
-        category: 'component',
-        description: 'IP65 rated DC & AC distribution boxes with Type-II surge protection and MCB fuses',
-      },
-      {
-        id: 'comp-kseb-metering',
-        name: 'KSEB Bi-directional Net Metering & Feasibility Fee',
-        price: 4500,
-        category: 'component',
-        description: 'KSEB application registration, site feasibility inspection, and bi-directional solar net meter testing',
-      },
-      {
-        id: 'comp-cables-earthing',
-        name: 'Solar DC/AC Solar Cables & Chemical Earthing Kit',
-        price: 11500,
-        category: 'component',
-        description: 'UV-resistant 4/6 sq.mm solar copper cables, dual chemical earthing electrodes, and lightning arrester',
-      },
-    ];
-
-    for (const comp of standardSolarComponents) {
-      if (!catalogItems.some((existing) => existing.name.toLowerCase() === comp.name.toLowerCase())) {
-        catalogItems.push(comp);
-      }
-    }
-
-    // 4. If a specific customer/enquiry was selected, check if they have a preferred course in Enquiry
-    if (customerQuery?.id) {
-      try {
-        const cleanId = customerQuery.id.replace(/^(enquiry|admission|customer):/, '');
-        const enquiry = await prisma.enquiry.findFirst({
-          where: {
-            OR: [
-              { id: cleanId },
-              ...(customerQuery.phone ? [{ phone: customerQuery.phone }] : []),
-              ...(customerQuery.name ? [{ candidateName: customerQuery.name }] : []),
-            ],
-          },
-          include: { preferredCourse: true },
-        });
-
-        if (enquiry?.preferredCourse) {
-          const pref = enquiry.preferredCourse;
-          const prefItem: InvoiceProductItem = {
-            id: `enquiry-pref-${pref.id}`,
-            name: `Enquiry System: ${pref.name}${pref.duration ? ` (${pref.duration})` : ''}`,
-            price: pref.courseFee || 0,
-            category: 'package',
-            description:
-              pref.description ||
-              `${pref.name} Solar System enquired by ${enquiry.candidateName}`,
-          };
-          // Put preferred course at top of catalog
-          catalogItems.unshift(prefItem);
-        }
-      } catch (err) {
-        console.warn('Could not inspect enquiry preferred course:', err);
-      }
-    }
-
     return {
       success: true,
       catalog: catalogItems,
+      requiredCapacities,
       matchingProposals,
     };
   } catch (error) {
@@ -244,6 +258,7 @@ export async function getInvoiceProductCatalog(customerQuery?: {
     return {
       success: false,
       catalog: [],
+      requiredCapacities: [],
       matchingProposals: [],
     };
   }
