@@ -6,8 +6,8 @@ import Link from 'next/link';
 import { addDays, endOfMonth, format, addMonths } from 'date-fns';
 import { toast } from 'sonner';
 import {
-  ArrowLeft, CalendarDays, Check, ChevronDown, FileText, GripVertical, Info,
-  Plus, ScanLine, Search, Settings2, X,
+  ArrowLeft, CalendarDays, Check, ChevronDown, FileCheck, FileText, GripVertical, Info,
+  Plus, ScanLine, Search, Settings2, Sparkles, X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +16,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { createInvoiceCustomer as createInvoiceCustomerRequest, createInvoiceCustomerFromAdmission, fetchInvoiceCatalog, fetchInvoiceCustomers, getPaymentNumberPreview, InvoiceCatalogItem, InvoiceCustomer, saveInvoice as saveInvoiceRequest, sendInvoiceEmail } from '@/lib/api/invoice-api';
+import { createInvoiceCustomer as createInvoiceCustomerRequest, createInvoiceCustomerFromAdmission, fetchInvoiceCustomers, getPaymentNumberPreview, InvoiceCustomer, saveInvoice as saveInvoiceRequest, sendInvoiceEmail } from '@/lib/api/invoice-api';
+import { getInvoiceProductCatalog, InvoiceProductItem, ProposalMatch } from '@/server/actions/invoice-catalog-actions';
 import { PaymentNumberSettingsDialog } from '@/components/invoice/invoice-payments';
 import { PageContainer, PageHeader } from '@/components/ui/page-header';
 
@@ -56,10 +57,10 @@ function CustomerSelect({ value, onChange, customers, loading, onNew }: { value:
   </div>;
 }
 
-function InvoiceItemRow({ item, catalog, onChange, onRemove, onEnter }: { item: InvoiceItem; catalog: InvoiceCatalogItem[]; onChange: (item: InvoiceItem) => void; onRemove: () => void; onEnter: () => void }) {
+function InvoiceItemRow({ item, catalog, onChange, onRemove, onEnter }: { item: InvoiceItem; catalog: InvoiceProductItem[]; onChange: (item: InvoiceItem) => void; onRemove: () => void; onEnter: () => void }) {
   const amount = item.quantity * item.rate * (1 - item.discount / 100);
   return <tr className="border-b last:border-0">
-    <td className="min-w-[280px] px-3 py-2"><div className="flex items-start gap-2"><GripVertical className="mt-2 size-4 shrink-0 text-muted-foreground/50" /><div className="flex size-10 shrink-0 items-center justify-center rounded border bg-muted/30 text-muted-foreground"><FileText className="size-4" /></div><div className="min-w-0 flex-1 space-y-1"><select aria-label="Solar product or service" value="" onChange={(e) => { const entry = catalog.find((candidate) => candidate.id === e.target.value); if (entry) onChange({ ...item, description: entry.name, rate: entry.price }); }} className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"><option value="">{catalog.length ? 'Choose a catalog item (optional)' : 'Enter a custom item'}</option>{catalog.map((entry) => <option key={entry.id} value={entry.id}>{entry.name} · {currency(entry.price)}</option>)}</select><Textarea value={item.description} onChange={(e) => onChange({ ...item, description: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onEnter(); } }} placeholder="Solar panel, inverter, installation, or other item" className="min-h-12 resize-y" /></div></div></td>
+    <td className="min-w-[280px] px-3 py-2"><div className="flex items-start gap-2"><GripVertical className="mt-2 size-4 shrink-0 text-muted-foreground/50" /><div className="flex size-10 shrink-0 items-center justify-center rounded border bg-muted/30 text-muted-foreground"><FileText className="size-4" /></div><div className="min-w-0 flex-1 space-y-1"><select aria-label="Solar product or proposal item" value="" onChange={(e) => { const entry = catalog.find((candidate) => candidate.id === e.target.value); if (entry) onChange({ ...item, description: entry.description || entry.name, rate: entry.price, ...(entry.quantity && entry.quantity > 0 ? { quantity: entry.quantity } : {}) }); }} className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"><option value="">{catalog.length ? 'Choose a solar product / proposal item (optional)' : 'Enter a custom item'}</option>{catalog.map((entry) => <option key={entry.id} value={entry.id}>{entry.name} · {currency(entry.price)}</option>)}</select><Textarea value={item.description} onChange={(e) => onChange({ ...item, description: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onEnter(); } }} placeholder="Solar system package, panel, inverter, or proposal item" className="min-h-12 resize-y" /></div></div></td>
     <td className="min-w-24 px-2"><Input aria-label="Quantity" type="number" min="1" step="1" value={item.quantity} onChange={(e) => onChange({ ...item, quantity: Number(e.target.value) })} className="h-9 text-right" /></td>
     <td className="min-w-28 px-2"><div className="relative"><span className="absolute left-2.5 top-2 text-sm text-muted-foreground">₹</span><Input aria-label="Rate" type="number" min="0" step="0.01" value={item.rate || ''} onChange={(e) => onChange({ ...item, rate: Number(e.target.value) })} className="h-9 pl-6 text-right" /></div></td>
     <td className="min-w-24 px-2"><div className="relative"><Input aria-label="Discount percentage" type="number" min="0" max="100" value={item.discount || ''} onChange={(e) => onChange({ ...item, discount: Number(e.target.value) })} className="h-9 pr-7 text-right" /><span className="absolute right-2.5 top-2 text-xs text-muted-foreground">%</span></div></td>
@@ -88,7 +89,8 @@ function TotalsPanel({ subtotal, taxAmount, discount, setDiscount, discountMode,
 export function NewInvoiceForm() {
   const router = useRouter();
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [catalog, setCatalog] = useState<InvoiceCatalogItem[]>([]);
+  const [catalog, setCatalog] = useState<InvoiceProductItem[]>([]);
+  const [matchingProposals, setMatchingProposals] = useState<ProposalMatch[]>([]);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [receivedPayment, setReceivedPayment] = useState(false);
   const [receivedAmount, setReceivedAmount] = useState('');
@@ -135,17 +137,40 @@ export function NewInvoiceForm() {
   const hasDescription = items.some((item) => item.description.trim() && Number.isInteger(item.quantity) && item.quantity > 0);
   useEffect(() => {
     let active = true;
-    Promise.allSettled([fetchInvoiceCustomers(), fetchInvoiceCatalog()])
+    Promise.allSettled([fetchInvoiceCustomers(), getInvoiceProductCatalog()])
       .then(([customerResult, catalogResult]) => {
         if (!active) return;
         if (customerResult.status === 'fulfilled') setCustomers(customerResult.value);
         else toast.error(customerResult.reason instanceof Error ? customerResult.reason.message : 'Could not load customers.');
-        if (catalogResult.status === 'fulfilled') setCatalog(catalogResult.value);
-        else toast.error(catalogResult.reason instanceof Error ? catalogResult.reason.message : 'Could not load solar item catalog.');
+        if (catalogResult.status === 'fulfilled') {
+          setCatalog(catalogResult.value.catalog);
+          setMatchingProposals(catalogResult.value.matchingProposals);
+        } else {
+          toast.error(catalogResult.reason instanceof Error ? catalogResult.reason.message : 'Could not load solar product catalog.');
+        }
       })
       .finally(() => { if (active) setCustomersLoading(false); });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (!customer) return;
+    let active = true;
+    getInvoiceProductCatalog({
+      id: customer.id,
+      name: customer.name,
+      phone: customer.phone,
+      email: customer.email,
+      sourceType: customer.sourceType,
+    }).then((res) => {
+      if (!active) return;
+      if (res.catalog?.length) setCatalog(res.catalog);
+      if (res.matchingProposals) setMatchingProposals(res.matchingProposals);
+    }).catch((err) => {
+      console.warn('Could not refresh customer proposal catalog:', err);
+    });
+    return () => { active = false; };
+  }, [customer]);
   useEffect(() => {
     if (receivedPayment && !receivedAmountEdited) setReceivedAmount(payableTotal.toFixed(2));
   }, [receivedPayment, receivedAmountEdited, payableTotal]);
@@ -222,7 +247,7 @@ export function NewInvoiceForm() {
   };
 
   return <PageContainer className="pb-4">
-    <PageHeader title="New Invoice" description="Create an invoice for a customer using your current solar service catalog." actions={<Button type="button" variant="outline" onClick={() => askLeave('/invoices')}><ArrowLeft className="mr-2 size-4" /> Back to invoices</Button>} />
+    <PageHeader title="New Invoice" description="Create an invoice for a customer using solar system packages, components, and proposal items." actions={<Button type="button" variant="outline" onClick={() => askLeave('/invoices')}><ArrowLeft className="mr-2 size-4" /> Back to invoices</Button>} />
     <div className="space-y-5">
       <Section title="Invoice Details">
         <div className="grid gap-x-8 gap-y-5 lg:grid-cols-[minmax(220px,0.75fr)_minmax(0,1.5fr)]">
@@ -237,7 +262,50 @@ export function NewInvoiceForm() {
       <Section title="GST Details" action={<span className="text-xs text-muted-foreground">Optional · GSTIN is not required</span>}>
         <div className="max-w-xl"><Field label="GSTIN (optional)"><Input value={gstin} onChange={(e) => setGstin(e.target.value)} placeholder="Enter GSTIN" /></Field></div>
       </Section>
-      <Section title="Solar Products & Services" action={<Button type="button" size="sm" variant="outline" onClick={() => setScannerOpen(true)}><ScanLine className="mr-2 size-4" />Scan item</Button>}>
+      <Section title="Solar Products & Proposal Items" action={<Button type="button" size="sm" variant="outline" onClick={() => setScannerOpen(true)}><ScanLine className="mr-2 size-4" />Scan item</Button>}>
+        {matchingProposals.length > 0 && (
+          <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                  <Sparkles className="size-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-foreground">
+                    Proposal Found for {customer?.name || 'Customer'}
+                  </h4>
+                  <p className="text-xs text-muted-foreground">
+                    {matchingProposals[0].proposalNo ? `Proposal #${matchingProposals[0].proposalNo} · ` : ''}
+                    {matchingProposals[0].items.length} item{matchingProposals[0].items.length === 1 ? '' : 's'} · {currency(matchingProposals[0].totalAmount)}
+                  </p>
+                </div>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => {
+                  const prop = matchingProposals[0];
+                  if (prop.items.length > 0) {
+                    setItems(prop.items.map((it, idx) => ({
+                      id: idx + 1,
+                      description: it.description,
+                      quantity: it.quantity || 1,
+                      rate: it.unitPrice || 0,
+                      discount: 0,
+                      tax: 0,
+                    })));
+                    setNextId(prop.items.length + 1);
+                    toast.success(`Loaded ${prop.items.length} item(s) from proposal ${prop.proposalNo}.`);
+                  }
+                }}
+              >
+                <FileCheck className="size-4" />
+                Apply Proposal Items
+              </Button>
+            </div>
+          </div>
+        )}
         <div className="overflow-x-auto"><table className="w-full min-w-[970px] border-separate border-spacing-0"><thead><tr className="bg-muted/35 text-left text-[11px] font-semibold text-muted-foreground"><th className="px-3 py-3">ITEM DETAILS</th><th className="px-2">QUANTITY</th><th className="px-2">RATE</th><th className="px-2">DISCOUNT</th><th className="px-2">TAX</th><th className="px-3 text-right">AMOUNT</th><th className="w-10" /></tr></thead><tbody>{items.map((item) => <InvoiceItemRow key={item.id} item={item} catalog={catalog} onChange={updateItem} onRemove={() => setItems((current) => current.length > 1 ? current.filter((entry) => entry.id !== item.id) : current)} onEnter={appendRow} />)}</tbody></table></div>
         {errors && !hasDescription && <p className="mt-2 text-xs text-destructive">Add an item description and quantity.</p>}
         <div className="mt-4"><Button type="button" variant="outline" size="sm" onClick={appendRow}><Plus className="size-4" /> Add Item</Button></div>
@@ -309,7 +377,7 @@ function InvoiceItemScanner({ open, onOpenChange, onScan }: { open: boolean; onO
     setScanValue('');
     onOpenChange(false);
   };
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent><DialogHeader><DialogTitle>Scan invoice item</DialogTitle><DialogDescription>Scan a catalog item barcode. The current service catalog matches scans by item name or ID.</DialogDescription></DialogHeader><div className="space-y-3"><video ref={videoRef} muted playsInline className="aspect-video w-full rounded-md bg-muted object-cover" /><p className="text-xs text-muted-foreground">{cameraMessage}</p><form onSubmit={submit} className="flex gap-2"><Input autoFocus value={scanValue} onChange={(event) => setScanValue(event.target.value)} placeholder="USB scanner input or catalog item name / ID" /><Button type="submit">Add item</Button></form><p className="text-xs text-muted-foreground">This catalog does not store separate SKU or barcode values. Scanned codes must currently equal a service name or ID.</p></div></DialogContent></Dialog>;
+  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent><DialogHeader><DialogTitle>Scan invoice item</DialogTitle><DialogDescription>Scan a catalog item barcode. The current product catalog matches scans by item name or ID.</DialogDescription></DialogHeader><div className="space-y-3"><video ref={videoRef} muted playsInline className="aspect-video w-full rounded-md bg-muted object-cover" /><p className="text-xs text-muted-foreground">{cameraMessage}</p><form onSubmit={submit} className="flex gap-2"><Input autoFocus value={scanValue} onChange={(event) => setScanValue(event.target.value)} placeholder="USB scanner input or product item name / ID" /><Button type="submit">Add item</Button></form><p className="text-xs text-muted-foreground">This catalog does not store separate SKU or barcode values. Scanned codes must currently equal a product name or ID.</p></div></DialogContent></Dialog>;
 }
 
 function FieldLabel({ children, required = false }: { children: React.ReactNode; required?: boolean }) { return <div className="mb-2 text-sm font-medium">{children}{required && <span className="ml-1 text-destructive" title="Required">*</span>}</div>; }
