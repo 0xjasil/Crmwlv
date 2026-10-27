@@ -4,7 +4,7 @@
 import { actionClient } from '@/lib/safe-action';
 import { auth } from '@/lib/auth';
 import { returnValidationErrors } from 'next-safe-action';
-import prisma from '@/lib/prisma';
+import prisma, { withPrismaRetry } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { redirect } from 'next/navigation';
 import { cookies, headers } from 'next/headers';
@@ -12,6 +12,7 @@ import { loginSchema, userFormSchema } from '@/schema/user-schema';
 import { z } from 'zod';
 import { SOFTWARE_POSITIONS } from '@/constants/permissions';
 import { cacheService } from '@/lib/cache/cache-service';
+import { CACHE_TTL } from '@/lib/cache/cache-keys';
 
 /**
  * Ensures standard CRM software positions are populated in the database.
@@ -135,7 +136,7 @@ export const createUserAction = actionClient
           where: { id: newUser.id },
           include: { userRole: true },
         });
-      });
+      }, { maxWait: 15000, timeout: 30000 });
 
       if (!createdUser) {
         return returnValidationErrors(userFormSchema, {
@@ -496,37 +497,113 @@ export const logoutAction = actionClient.action(async () => {
 
 export const getAllUsers = async () => {
   try {
-    return await prisma.user.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: {
-        userRole: true,
-      },
-    });
-  } catch (error) {
-    console.error('Failed to fetch users:', error);
+    return await withPrismaRetry(async () => {
+      return await prisma.user.findMany({
+        orderBy: { createdAt: 'desc' },
+        include: {
+          userRole: true,
+        },
+      });
+    }, 2, 350);
+  } catch (error: any) {
+    console.warn('[Users] Transient DB notice in getAllUsers:', error?.message || error);
     return [];
   }
 };
 
 export const getAllRoles = async () => {
   try {
-    await ensureStandardRolesExist();
-    return await prisma.role.findMany({
-      orderBy: { name: 'asc' },
+    return await cacheService.getOrSet('master:roles', CACHE_TTL.MASTER_DATA, async () => {
+      return await withPrismaRetry(async () => {
+        await ensureStandardRolesExist();
+        return await prisma.role.findMany({
+          orderBy: { name: 'asc' },
+        });
+      }, 2, 350);
     });
-  } catch (error) {
-    console.error('Failed to fetch roles:', error);
+  } catch (error: any) {
+    console.warn('[Roles] Transient DB notice in getAllRoles:', error?.message || error);
     return [];
   }
 };
 
 export const getAllBranches = async () => {
   try {
-    return await prisma.branch.findMany({
-      orderBy: { createdAt: 'desc' },
+    return await cacheService.getOrSet('master:branches', CACHE_TTL.MASTER_DATA, async () => {
+      return await withPrismaRetry(async () => {
+        return await prisma.branch.findMany({
+          orderBy: { createdAt: 'desc' },
+        });
+      }, 2, 350);
     });
-  } catch (error) {
-    console.error('Failed to fetch branches:', error);
+  } catch (error: any) {
+    console.warn('[Branches] Transient DB notice in getAllBranches:', error?.message || error);
     return [];
   }
 };
+
+export const changePasswordAction = actionClient
+  .inputSchema(
+    z.object({
+      currentPassword: z.string().min(1, 'Current password is required'),
+      newPassword: z.string().min(6, 'New password must be at least 6 characters'),
+    })
+  )
+  .action(async ({ parsedInput: { currentPassword, newPassword } }) => {
+    try {
+      const session = await auth.api.getSession({
+        headers: await headers(),
+      });
+
+      if (!session?.user) {
+        return {
+          success: false,
+          message: 'Unauthorized. Please sign in.',
+        };
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+      });
+
+      if (!user || !user.password) {
+        return {
+          success: false,
+          message: 'User account not found',
+        };
+      }
+
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return {
+          success: false,
+          message: 'Incorrect current password',
+        };
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          password: hashedPassword,
+        },
+      });
+
+      await cacheService.delete(`user:${user.id}`);
+      if (user.email) {
+        await cacheService.delete(`user:email:${user.email}`);
+      }
+
+      return {
+        success: true,
+        message: 'Password changed successfully',
+      };
+    } catch (err: any) {
+      console.error('Change password error:', err);
+      return {
+        success: false,
+        message: err.message || 'Failed to change password',
+      };
+    }
+  });
+

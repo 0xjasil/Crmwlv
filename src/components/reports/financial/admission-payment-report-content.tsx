@@ -40,6 +40,7 @@ import {
 import { AdmissionPaymentReport, DateRangeFilter } from "@/types/reports";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { FinancialReportSkeleton } from "./financial-report-skeleton";
+import { KpiCard } from "@/components/dashboard/kpi-card";
 
 export function AdmissionPaymentReportContent() {
   const [reportData, setReportData] = useState<AdmissionPaymentReport | null>(
@@ -384,61 +385,35 @@ export function AdmissionPaymentReportContent() {
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardDescription>Total Collected</CardDescription>
-            <IconTrendingUp className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {formatCurrency(reportData.totalCollected)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Total payments received
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardDescription>Total Outstanding</CardDescription>
-            <IconAlertTriangle className="h-4 w-4 text-orange-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">
-              {formatCurrency(reportData.totalOutstanding)}
-            </div>
-            <p className="text-xs text-muted-foreground">Pending collections</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardDescription>Overdue Amount</CardDescription>
-            <IconAlertTriangle className="h-4 w-4 text-red-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {formatCurrency(reportData.totalOverdue)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Requires immediate attention
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardDescription>Total Students</CardDescription>
-            <IconUsers className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {reportData.students.length}
-            </div>
-            <p className="text-xs text-muted-foreground">Active admissions</p>
-          </CardContent>
-        </Card>
+        <KpiCard
+          title="Total Collected"
+          value={formatCurrency(reportData.totalCollected)}
+          indicatorColor="emerald"
+          icon={<IconTrendingUp className="h-4 w-4" />}
+          description="Total payments received"
+          trend={{ value: 'Collected', isPositive: true }}
+        />
+        <KpiCard
+          title="Total Outstanding"
+          value={formatCurrency(reportData.totalOutstanding)}
+          indicatorColor="amber"
+          icon={<IconAlertTriangle className="h-4 w-4" />}
+          description="Pending collections"
+        />
+        <KpiCard
+          title="Overdue Amount"
+          value={formatCurrency(reportData.totalOverdue)}
+          indicatorColor="rose"
+          icon={<IconAlertTriangle className="h-4 w-4" />}
+          description="Requires immediate attention"
+        />
+        <KpiCard
+          title="Total Students"
+          value={reportData.students.length}
+          indicatorColor="purple"
+          icon={<IconUsers className="h-4 w-4" />}
+          description="Active admissions"
+        />
       </div>
 
       {/* Main Content Tabs */}

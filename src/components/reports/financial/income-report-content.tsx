@@ -39,6 +39,7 @@ import { getIncomeReport } from "@/server/actions/report-actions";
 import { IncomeReport, DateRangeFilter } from "@/types/reports";
 import { formatCurrency } from "@/lib/utils";
 import { FinancialReportSkeleton } from "./financial-report-skeleton";
+import { KpiCard } from "@/components/dashboard/kpi-card";
 
 type IncomeCSVRow = [
   invoiceNumber: string,
@@ -390,57 +391,35 @@ export function IncomeReportContent() {
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardDescription>Total Income</CardDescription>
-            <IconCash className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {formatCurrency(reportData.totalIncome)}
-            </div>
-            <p className="text-xs text-muted-foreground">All revenue streams</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardDescription>Service Categories</CardDescription>
-            <IconCoins className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {reportData.sources.length}
-            </div>
-            <p className="text-xs text-muted-foreground">Business categories</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardDescription>Total Invoices</CardDescription>
-            <IconFileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {reportData.detailedTransactions?.length || 0}
-            </div>
-            <p className="text-xs text-muted-foreground">Paid invoices</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardDescription>Monthly Revenue</CardDescription>
-            <IconChartLine className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {reportData.monthlyRevenue.length}
-            </div>
-            <p className="text-xs text-muted-foreground">Tracked periods</p>
-          </CardContent>
-        </Card>
+        <KpiCard
+          title="Total Income"
+          value={formatCurrency(reportData.totalIncome)}
+          indicatorColor="emerald"
+          icon={<IconCash className="h-4 w-4" />}
+          description="All revenue streams"
+          trend={{ value: 'Income', isPositive: true }}
+        />
+        <KpiCard
+          title="Service Categories"
+          value={reportData.sources.length}
+          indicatorColor="amber"
+          icon={<IconCoins className="h-4 w-4" />}
+          description="Business categories"
+        />
+        <KpiCard
+          title="Total Invoices"
+          value={reportData.detailedTransactions?.length || 0}
+          indicatorColor="blue"
+          icon={<IconFileText className="h-4 w-4" />}
+          description="Paid invoices"
+        />
+        <KpiCard
+          title="Monthly Revenue"
+          value={reportData.monthlyRevenue.length}
+          indicatorColor="purple"
+          icon={<IconChartLine className="h-4 w-4" />}
+          description="Tracked periods"
+        />
       </div>
 
       {/* Main Content Tabs */}

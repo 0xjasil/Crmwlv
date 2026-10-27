@@ -199,7 +199,12 @@ export async function getInvoiceProductCatalog(customerQuery?: {
             proposal.leadId &&
             customerQuery.id.includes(proposal.leadId);
 
-          if (nameMatch || phoneMatch || leadMatch) {
+          const enquiryMatch =
+            customerQuery.id &&
+            proposal.enquiryId &&
+            customerQuery.id.includes(proposal.enquiryId);
+
+          if (nameMatch || phoneMatch || leadMatch || enquiryMatch) {
             matchingProposals.push({
               id: proposal.id,
               proposalNo: proposal.proposalNo,

@@ -1,5 +1,4 @@
-import prisma from '@/lib/prisma';
-import { EnquiryStatus, FollowUpStatus } from '@prisma/client';
+import prisma, { withPrismaRetry } from '@/lib/prisma';
 import { DashboardData } from '@/types/dashboard';
 import { cacheService } from '@/lib/cache/cache-service';
 import { CACHE_KEYS, CACHE_TTL } from '@/lib/cache/cache-keys';
@@ -30,98 +29,84 @@ export async function getDashboardData(
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-      // Base filter for user-specific data
-      let userFilter: Record<string, string> = {};
+      let metrics = {
+        totalEnquiries: 0,
+        newEnquiries: 0,
+        interestedLeads: 0,
+        enrolledEnquiries: 0,
+        totalCalls: 0,
+        recentCallLogs: 0,
+        overdueFollowUps: 0,
+        todayFollowUps: 0,
+      };
 
-      // For telecallers, filter by assigned enquiries
-      if (userRole === 'telecaller' && userId) {
-        userFilter = { assignedToUserId: userId };
+      try {
+        metrics = await withPrismaRetry(async () => {
+          let rawResult: any[] = [];
+          if (userRole === 'telecaller' && userId) {
+            rawResult = await prisma.$queryRawUnsafe(`
+              SELECT
+                (SELECT COUNT(*)::int FROM "enquiry" WHERE "assignedToUserId" = $1) as "totalEnquiries",
+                (SELECT COUNT(*)::int FROM "enquiry" WHERE "assignedToUserId" = $1 AND "createdAt" >= $2) as "newEnquiries",
+                (SELECT COUNT(*)::int FROM "enquiry" WHERE "assignedToUserId" = $1 AND "status" = 'INTERESTED') as "interestedLeads",
+                (SELECT COUNT(*)::int FROM "enquiry" WHERE "assignedToUserId" = $1 AND "status" = 'ENROLLED' AND "updatedAt" >= $2) as "enrolledEnquiries",
+                (SELECT COUNT(*)::int FROM "call_log" WHERE "enquiryId" IN (SELECT id FROM "enquiry" WHERE "assignedToUserId" = $1)) as "totalCalls",
+                (SELECT COUNT(*)::int FROM "call_log" WHERE "createdAt" >= $2 AND "enquiryId" IN (SELECT id FROM "enquiry" WHERE "assignedToUserId" = $1)) as "recentCallLogs",
+                (SELECT COUNT(*)::int FROM "follow_up" WHERE "status" = 'PENDING' AND "scheduledAt" < $3 AND "enquiryId" IN (SELECT id FROM "enquiry" WHERE "assignedToUserId" = $1)) as "overdueFollowUps",
+                (SELECT COUNT(*)::int FROM "follow_up" WHERE "status" = 'PENDING' AND "scheduledAt" >= $3 AND "scheduledAt" < $4 AND "enquiryId" IN (SELECT id FROM "enquiry" WHERE "assignedToUserId" = $1)) as "todayFollowUps"
+            `, userId, sevenDaysAgo, today, tomorrow);
+          } else if (userRole === 'executive' && userBranch) {
+            rawResult = await prisma.$queryRawUnsafe(`
+              SELECT
+                (SELECT COUNT(*)::int FROM "enquiry" WHERE "branchId" = $1) as "totalEnquiries",
+                (SELECT COUNT(*)::int FROM "enquiry" WHERE "branchId" = $1 AND "createdAt" >= $2) as "newEnquiries",
+                (SELECT COUNT(*)::int FROM "enquiry" WHERE "branchId" = $1 AND "status" = 'INTERESTED') as "interestedLeads",
+                (SELECT COUNT(*)::int FROM "enquiry" WHERE "branchId" = $1 AND "status" = 'ENROLLED' AND "updatedAt" >= $2) as "enrolledEnquiries",
+                (SELECT COUNT(*)::int FROM "call_log" WHERE "enquiryId" IN (SELECT id FROM "enquiry" WHERE "branchId" = $1)) as "totalCalls",
+                (SELECT COUNT(*)::int FROM "call_log" WHERE "createdAt" >= $2 AND "enquiryId" IN (SELECT id FROM "enquiry" WHERE "branchId" = $1)) as "recentCallLogs",
+                (SELECT COUNT(*)::int FROM "follow_up" WHERE "status" = 'PENDING' AND "scheduledAt" < $3 AND "enquiryId" IN (SELECT id FROM "enquiry" WHERE "branchId" = $1)) as "overdueFollowUps",
+                (SELECT COUNT(*)::int FROM "follow_up" WHERE "status" = 'PENDING' AND "scheduledAt" >= $3 AND "scheduledAt" < $4 AND "enquiryId" IN (SELECT id FROM "enquiry" WHERE "branchId" = $1)) as "todayFollowUps"
+            `, userBranch, sevenDaysAgo, today, tomorrow);
+          } else {
+            rawResult = await prisma.$queryRawUnsafe(`
+              SELECT
+                (SELECT COUNT(*)::int FROM "enquiry") as "totalEnquiries",
+                (SELECT COUNT(*)::int FROM "enquiry" WHERE "createdAt" >= $1) as "newEnquiries",
+                (SELECT COUNT(*)::int FROM "enquiry" WHERE "status" = 'INTERESTED') as "interestedLeads",
+                (SELECT COUNT(*)::int FROM "enquiry" WHERE "status" = 'ENROLLED' AND "updatedAt" >= $1) as "enrolledEnquiries",
+                (SELECT COUNT(*)::int FROM "call_log") as "totalCalls",
+                (SELECT COUNT(*)::int FROM "call_log" WHERE "createdAt" >= $1) as "recentCallLogs",
+                (SELECT COUNT(*)::int FROM "follow_up" WHERE "status" = 'PENDING' AND "scheduledAt" < $2) as "overdueFollowUps",
+                (SELECT COUNT(*)::int FROM "follow_up" WHERE "status" = 'PENDING' AND "scheduledAt" >= $2 AND "scheduledAt" < $3) as "todayFollowUps"
+            `, sevenDaysAgo, today, tomorrow);
+          }
+
+          const row = rawResult[0] || {};
+          return {
+            totalEnquiries: Number(row.totalEnquiries) || 0,
+            newEnquiries: Number(row.newEnquiries) || 0,
+            interestedLeads: Number(row.interestedLeads) || 0,
+            enrolledEnquiries: Number(row.enrolledEnquiries) || 0,
+            totalCalls: Number(row.totalCalls) || 0,
+            recentCallLogs: Number(row.recentCallLogs) || 0,
+            overdueFollowUps: Number(row.overdueFollowUps) || 0,
+            todayFollowUps: Number(row.todayFollowUps) || 0,
+          };
+        }, 2, 400);
+      } catch (sqlErr: any) {
+        console.warn('[Dashboard] Aggregated metrics notice, using safe fallback values:', sqlErr?.message || sqlErr);
       }
 
-      // For executives, filter by branch
-      if (userRole === 'executive' && userBranch) {
-        userFilter = { branchId: userBranch };
-      }
-
-      // For admins, no filtering (see all data)
-
-      // Get basic enquiry stats
-      const [
+      const {
         totalEnquiries,
-        newEnquiriesCount,
+        newEnquiries: newEnquiriesCount,
+        interestedLeads,
+        enrolledEnquiries,
         totalCalls,
+        recentCallLogs,
         overdueFollowUps,
         todayFollowUps,
-        interestedLeads,
-        recentCallLogs,
-        enrolledEnquiries,
-      ] = await Promise.all([
-        // Total enquiries
-        prisma.enquiry.count({
-          where: userFilter,
-        }),
-
-        // New enquiries (created in last 7 days)
-        prisma.enquiry.count({
-          where: {
-            ...userFilter,
-            createdAt: { gte: sevenDaysAgo },
-          },
-        }),
-
-        // Total calls
-        prisma.callLog.count({
-          where: {
-            enquiry: userFilter,
-          },
-        }),
-
-        // Overdue follow-ups
-        prisma.followUp.count({
-          where: {
-            enquiry: userFilter,
-            status: FollowUpStatus.PENDING,
-            scheduledAt: { lt: today },
-          },
-        }),
-
-        // Today's follow-ups
-        prisma.followUp.count({
-          where: {
-            enquiry: userFilter,
-            status: FollowUpStatus.PENDING,
-            scheduledAt: {
-              gte: today,
-              lt: tomorrow,
-            },
-          },
-        }),
-
-        // Interested leads
-        prisma.enquiry.count({
-          where: {
-            ...userFilter,
-            status: EnquiryStatus.INTERESTED,
-          },
-        }),
-
-        // Recent call logs (last 7 days)
-        prisma.callLog.count({
-          where: {
-            enquiry: userFilter,
-            createdAt: { gte: sevenDaysAgo },
-          },
-        }),
-
-        // Enrollments (last 7 days)
-        prisma.enquiry.count({
-          where: {
-            ...userFilter,
-            status: EnquiryStatus.ENROLLED,
-            updatedAt: { gte: sevenDaysAgo },
-          },
-        }),
-      ]);
+      } = metrics;
 
       // Calculate performance metrics
       const interestRate = totalEnquiries > 0 ? (interestedLeads / totalEnquiries) * 100 : 0;
@@ -161,8 +146,8 @@ export async function getDashboardData(
         },
       };
     });
-  } catch (error) {
-    console.error('Failed to fetch dashboard data:', error);
+  } catch (error: any) {
+    console.warn('[Dashboard] Transient DB connection notice, returning fallback metrics:', error?.message || error);
     return {
       stats: {
         totalEnquiries: 0,

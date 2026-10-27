@@ -13,6 +13,7 @@ import {
 } from '@tabler/icons-react'
 import { getTelecallerPerformanceReport } from '@/server/actions/report-actions'
 import { TelecallerReport } from '@/types/reports'
+import { KpiCard } from '@/components/dashboard/kpi-card'
 
 export function TelecallerReportCard() {
   const [reportData, setReportData] = useState<TelecallerReport | null>(null)
@@ -103,55 +104,39 @@ export function TelecallerReportCard() {
     <div className="space-y-6">
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardDescription>Total Telecallers</CardDescription>
-            <IconUsers className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{reportData.totalTelecallers}</div>
-            <p className="text-xs text-muted-foreground">Active team members</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardDescription>Total Enquiries</CardDescription>
-            <IconPhone className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {reportData.performance.reduce((sum, p) => sum + p.totalEnquiries, 0)}
-            </div>
-            <p className="text-xs text-muted-foreground">Across all telecallers</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardDescription>Avg Conversion Rate</CardDescription>
-            <IconTrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {reportData.performance.length > 0
-                ? Math.round(reportData.performance.reduce((sum, p) => sum + p.conversionRate, 0) / reportData.performance.length * 10) / 10
-                : 0}%
-            </div>
-            <p className="text-xs text-muted-foreground">Team average</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardDescription>Top Performer</CardDescription>
-            <IconUsers className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-bold truncate">{reportData.topPerformer}</div>
-            <p className="text-xs text-muted-foreground">Highest conversion rate</p>
-          </CardContent>
-        </Card>
+        <KpiCard
+          title="Total Telecallers"
+          value={reportData.totalTelecallers}
+          indicatorColor="purple"
+          icon={<IconUsers className="h-4 w-4" />}
+          description="Active team members"
+        />
+        <KpiCard
+          title="Total Enquiries"
+          value={reportData.performance.reduce((sum, p) => sum + p.totalEnquiries, 0)}
+          indicatorColor="blue"
+          icon={<IconPhone className="h-4 w-4" />}
+          description="Across all telecallers"
+        />
+        <KpiCard
+          title="Avg Conversion Rate"
+          value={`${
+            reportData.performance.length > 0
+              ? Math.round((reportData.performance.reduce((sum, p) => sum + p.conversionRate, 0) / reportData.performance.length) * 10) / 10
+              : 0
+          }%`}
+          indicatorColor="emerald"
+          icon={<IconTrendingUp className="h-4 w-4" />}
+          description="Team average conversion"
+          trend={{ value: 'Conversion', isPositive: true }}
+        />
+        <KpiCard
+          title="Top Performer"
+          value={reportData.topPerformer || 'N/A'}
+          indicatorColor="amber"
+          icon={<IconUsers className="h-4 w-4" />}
+          description="Highest conversion rate"
+        />
       </div>
 
       {/* Performance Table */}

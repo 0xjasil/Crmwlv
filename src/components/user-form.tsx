@@ -126,7 +126,7 @@ export function UserForm({ roles, branches, onSuccess, initialData }: UserFormPr
               control={form.control}
               name="name"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="min-w-0">
                   <FormLabel className="text-xs font-semibold">Full Name</FormLabel>
                   <FormControl>
                     <Input
@@ -147,7 +147,7 @@ export function UserForm({ roles, branches, onSuccess, initialData }: UserFormPr
               control={form.control}
               name="email"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="min-w-0">
                   <FormLabel className="text-xs font-semibold">Email Address</FormLabel>
                   <FormControl>
                     <Input
@@ -170,7 +170,7 @@ export function UserForm({ roles, branches, onSuccess, initialData }: UserFormPr
               control={form.control}
               name="password"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="min-w-0">
                   <FormLabel className="text-xs font-semibold">Password</FormLabel>
                   <FormControl>
                     <Input
@@ -191,7 +191,7 @@ export function UserForm({ roles, branches, onSuccess, initialData }: UserFormPr
               control={form.control}
               name="confirmPassword"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="min-w-0">
                   <FormLabel className="text-xs font-semibold">Confirm Password</FormLabel>
                   <FormControl>
                     <Input
@@ -214,63 +214,75 @@ export function UserForm({ roles, branches, onSuccess, initialData }: UserFormPr
             <FormField
               control={form.control}
               name="role"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-xs font-semibold">Software Position</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    disabled={isExecuting}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full h-8 text-xs bg-background">
-                        <SelectValue placeholder="Select Position" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {SOFTWARE_POSITIONS.map((pos) => (
-                        <SelectItem key={pos.id} value={pos.id} className="text-xs cursor-pointer">
-                          <div className="flex flex-col py-0.5">
-                            <span className="font-semibold text-foreground">{pos.title}</span>
-                            <span className="text-[10px] text-muted-foreground">{pos.description}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage className="text-[11px]" />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const selectedPos = SOFTWARE_POSITIONS.find((p) => p.id === field.value);
+                return (
+                  <FormItem className="min-w-0">
+                    <FormLabel className="text-xs font-semibold">Software Position</FormLabel>
+                    <Select
+                      value={field.value || undefined}
+                      onValueChange={field.onChange}
+                      disabled={isExecuting}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full h-8 text-xs bg-background truncate">
+                          <SelectValue placeholder="Select Position">
+                            {selectedPos?.title}
+                          </SelectValue>
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
+                        {SOFTWARE_POSITIONS.map((pos) => (
+                          <SelectItem key={pos.id} value={pos.id} className="text-xs cursor-pointer">
+                            <div className="flex flex-col py-0.5 text-left">
+                              <span className="font-semibold text-foreground">{pos.title}</span>
+                              <span className="text-[10px] text-muted-foreground whitespace-normal leading-snug">
+                                {pos.description}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage className="text-[11px]" />
+                  </FormItem>
+                );
+              }}
             />
 
             {/* Branch Selector */}
             <FormField
               control={form.control}
               name="branch"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-xs font-semibold">Branch Office</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    disabled={isExecuting}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full h-8 text-xs bg-background">
-                        <SelectValue placeholder="Select Branch" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {branches.map((branch) => (
-                        <SelectItem key={branch.id} value={branch.id} className="text-xs cursor-pointer">
-                          <span className="font-medium">{branch.name}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage className="text-[11px]" />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const selectedBranch = branches.find((b) => b.id === field.value);
+                return (
+                  <FormItem className="min-w-0">
+                    <FormLabel className="text-xs font-semibold">Branch Office</FormLabel>
+                    <Select
+                      value={field.value || undefined}
+                      onValueChange={field.onChange}
+                      disabled={isExecuting}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full h-8 text-xs bg-background truncate">
+                          <SelectValue placeholder="Select Branch">
+                            {selectedBranch?.name}
+                          </SelectValue>
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {branches.map((branch) => (
+                          <SelectItem key={branch.id} value={branch.id} className="text-xs cursor-pointer">
+                            <span className="font-medium">{branch.name}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage className="text-[11px]" />
+                  </FormItem>
+                );
+              }}
             />
           </div>
 

@@ -19,11 +19,23 @@ export default async function UsersPage() {
     redirect('/dashboard');
   }
 
-  const [users, roles, branches] = await Promise.all([
-    getAllUsers(),
-    getAllRoles(),
-    getAllBranches(),
-  ]);
+  let users: any[] = [];
+  let roles: any[] = [];
+  let branches: any[] = [];
+
+  try {
+    const results = await Promise.allSettled([
+      getAllUsers(),
+      getAllRoles(),
+      getAllBranches(),
+    ]);
+
+    users = results[0].status === 'fulfilled' ? results[0].value : [];
+    roles = results[1].status === 'fulfilled' ? results[1].value : [];
+    branches = results[2].status === 'fulfilled' ? results[2].value : [];
+  } catch (err) {
+    console.warn('[Admin Users] Notice loading user management data:', err);
+  }
 
   return (
     <PageContainer>

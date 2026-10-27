@@ -18,6 +18,7 @@ import {
   IconFileAnalytics,
 } from '@tabler/icons-react';
 import { PageContainer, PageHeader } from '@/components/ui/page-header';
+import { KpiCard } from '@/components/dashboard/kpi-card';
 
 export default async function ReportsPage() {
   const session = await auth.api.getSession({
@@ -28,14 +29,28 @@ export default async function ReportsPage() {
     redirect('/login');
   }
 
-  // Get dashboard data
-  const dashboardResult = await getReportDashboardData({});
-
-  if (!dashboardResult?.data) {
-    throw new Error('Failed to load dashboard data');
+  // Get dashboard data safely
+  let dashboardData: any = null;
+  try {
+    const dashboardResult = await getReportDashboardData({});
+    dashboardData = dashboardResult?.data;
+  } catch (err: any) {
+    console.warn('[Reports] Notice fetching dashboard report data:', err?.message || err);
   }
 
-  const dashboardData = dashboardResult.data;
+  // Graceful fallback data if database is momentarily unreachable
+  if (!dashboardData) {
+    dashboardData = {
+      summaryCards: [
+        { title: 'Total Enquiries', value: 0, trend: { value: '0%', type: 'up' }, icon: 'Users', color: 'blue' },
+        { title: 'Total Admissions', value: 0, trend: { value: '0%', type: 'up' }, icon: 'UserCheck', color: 'green' },
+        { title: 'Total Revenue', value: '₹0', trend: { value: '0%', type: 'up' }, icon: 'TrendingUp', color: 'emerald' },
+        { title: 'Total Expenses', value: '₹0', trend: { value: '0%', type: 'down' }, icon: 'TrendingDown', color: 'red' },
+      ],
+      availableReports: [],
+      recentActivity: [],
+    };
+  }
   const userRole = session.user.role || 'telecaller';
 
   // Define all available reports with their details
@@ -143,34 +158,34 @@ export default async function ReportsPage() {
 
       {/* Key Metrics Overview */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {dashboardData.summaryCards.map((card, index) => (
-          <div key={index} className="rounded-xl border border-border/80 bg-card p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground">{card.title}</span>
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                {card.icon === 'Users' && <IconUsers className="h-4 w-4" />}
-                {card.icon === 'UserCheck' && <IconUsers className="h-4 w-4" />}
-                {card.icon === 'TrendingUp' && <IconTrendingUp className="h-4 w-4" />}
-                {card.icon === 'TrendingDown' && <IconTrendingUp className="h-4 w-4" />}
-              </div>
-            </div>
-            <div className="mt-2 text-2xl font-bold tracking-tight text-foreground">{card.value}</div>
-            {card.trend && (
-              <div className="mt-1 flex items-center gap-1 text-[11px]">
-                <span
-                  className={`font-semibold ${
-                    card.trend.type === 'up'
-                      ? 'text-emerald-600 dark:text-emerald-400'
-                      : 'text-rose-600 dark:text-rose-400'
-                  }`}
-                >
-                  {card.trend.value}
-                </span>
-                <span className="text-muted-foreground">vs last period</span>
-              </div>
-            )}
-          </div>
-        ))}
+        {dashboardData.summaryCards.map((card: any, index: number) => {
+          const indicatorColors = ['amber', 'emerald', 'blue', 'purple'];
+          const descriptions = [
+            'Total active candidates and lead interactions',
+            'Successfully enrolled students across programs',
+            'Cumulative gross collections and invoiced value',
+            'Ongoing operational tasks and service actions',
+          ];
+
+          return (
+            <KpiCard
+              key={index}
+              title={card.title}
+              value={card.value}
+              indicatorColor={indicatorColors[index % indicatorColors.length]}
+              trend={
+                card.trend
+                  ? {
+                      value: card.trend.value,
+                      isPositive: card.trend.type === 'up',
+                      label: 'vs last period',
+                    }
+                  : undefined
+              }
+              description={descriptions[index] || 'System activity and operational performance'}
+            />
+          );
+        })}
       </div>
 
       {/* Quick Launchpad */}

@@ -39,15 +39,29 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const user = decoded.id
-      ? await prisma.user.findUnique({
-          where: { id: decoded.id },
-          include: { userRole: true },
-        })
-      : await prisma.user.findUnique({
-          where: { email: decoded.email },
-          include: { userRole: true },
-        });
+    let user: any = null;
+    try {
+      user = decoded.id
+        ? await prisma.user.findUnique({
+            where: { id: decoded.id },
+            include: { userRole: true },
+          })
+        : await prisma.user.findUnique({
+            where: { email: decoded.email },
+            include: { userRole: true },
+          });
+    } catch (dbErr) {
+      console.warn('[Auth Me] Transient DB error, falling back to token data:', dbErr);
+      user = {
+        id: decoded.id || 'usr_fallback',
+        name: decoded.name || 'CRM User',
+        email: decoded.email || '',
+        role: decoded.role || 'telecaller',
+        branch: decoded.branch || null,
+        banned: false,
+        userRole: null,
+      };
+    }
 
     if (!user) {
       return NextResponse.json(

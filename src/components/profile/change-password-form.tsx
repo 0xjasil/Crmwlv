@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { authClient } from '@/lib/auth-client';
+import { changePasswordAction } from '@/lib/actions/auth';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { useState } from 'react';
@@ -43,22 +43,20 @@ export function ChangePasswordForm() {
   async function onSubmit(data: ChangePasswordFormValues) {
     setIsPending(true);
     try {
-      const { error } = await authClient.changePassword({
+      const res = await changePasswordAction({
         currentPassword: data.currentPassword,
         newPassword: data.newPassword,
-        revokeOtherSessions: data.revokeOtherSessions,
       });
 
-      if (error) {
-        toast.error(error.message || 'Failed to change password');
-        return;
+      if (res?.data?.success) {
+        toast.success(res.data.message || 'Password changed successfully');
+        form.reset();
+      } else {
+        toast.error(res?.data?.message || 'Failed to change password');
       }
-
-      toast.success('Password changed successfully');
-      form.reset();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Password change error:', error);
-      toast.error('An unexpected error occurred');
+      toast.error(error.message || 'An unexpected error occurred');
     } finally {
       setIsPending(false);
     }

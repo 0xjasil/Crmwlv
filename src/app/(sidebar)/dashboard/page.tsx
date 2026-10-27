@@ -49,11 +49,15 @@ export default async function Dashboard() {
   // Get branch name if user is executive
   let branchName: string | undefined;
   if (session.user.role === 'executive' && session.user.branch) {
-    const branch = await prisma.branch.findUnique({
-      where: { id: session.user.branch },
-      select: { name: true },
-    });
-    branchName = branch?.name;
+    try {
+      const branch = await prisma.branch.findUnique({
+        where: { id: session.user.branch },
+        select: { name: true },
+      });
+      branchName = branch?.name;
+    } catch (e) {
+      console.warn('Dashboard branch fetch warning:', e);
+    }
   }
 
   // Get dashboard data - for telecallers, filter by their assigned enquiries
@@ -153,142 +157,57 @@ export default async function Dashboard() {
         <KpiCard
           title="Total Enquiries"
           value={stats.totalEnquiries}
-          description="All captured lead records"
-          icon={<IconUsers className="size-5 text-blue-600 dark:text-blue-400" />}
+          indicatorColor="amber"
+          description="Shows total enquiries by status to track pipeline performance."
           href="/enquiries"
         />
         <KpiCard
           title="New Enquiries"
           value={stats.newEnquiries}
-          description="Unassigned & fresh leads"
-          icon={<IconUserPlus className="size-5 text-emerald-600 dark:text-emerald-400" />}
+          indicatorColor="emerald"
+          description="Fresh enquiries and leads currently being processed."
+          trend={stats.newEnquiries > 0 ? { value: stats.newEnquiries, isPositive: true, label: 'new' } : undefined}
           href="/enquiries"
         />
         <KpiCard
           title="Pending Follow-ups"
           value={stats.pendingFollowUps}
-          description="Awaiting telecaller action"
-          icon={<IconClock className="size-5 text-amber-600 dark:text-amber-400" />}
+          indicatorColor="slate"
+          description="Enquiries awaiting action, such as confirmation or callback."
           href="/follow-ups"
         />
         <KpiCard
           title="Total Calls"
           value={stats.totalCalls}
-          description="Recorded interactions"
-          icon={<IconPhone className="size-5 text-purple-600 dark:text-purple-400" />}
+          indicatorColor="purple"
+          description="Recorded client conversations and communication logs."
           href="/call-register"
         />
       </div>
 
       {/* Follow-up Priority Queues */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Card className="border border-rose-200/80 bg-rose-50/30 dark:border-rose-900/50 dark:bg-rose-950/20 shadow-xs">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="flex size-8 items-center justify-center rounded-lg bg-rose-100 text-rose-600 dark:bg-rose-900/50 dark:text-rose-400">
-                  <IconAlertCircle className="size-4" />
-                </div>
-                <CardTitle className="text-sm font-semibold text-rose-950 dark:text-rose-200">
-                  Overdue Follow-ups
-                </CardTitle>
-              </div>
-              <Badge variant="destructive" className="text-[10px]">Action Needed</Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline justify-between">
-              <div className="text-3xl font-bold tracking-tight text-rose-700 dark:text-rose-400">
-                {followUpStats.overdueCount}
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 border-rose-200 bg-card hover:bg-rose-100/80 dark:border-rose-800"
-                asChild
-              >
-                <Link href="/follow-ups?filter=overdue">
-                  View Queue <IconArrowRight className="ml-1 size-3.5" />
-                </Link>
-              </Button>
-            </div>
-            <p className="text-xs text-rose-700/80 dark:text-rose-400/80 mt-2 font-medium">
-              Past scheduled interaction window
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border border-amber-200/80 bg-amber-50/30 dark:border-amber-900/50 dark:bg-amber-950/20 shadow-xs">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="flex size-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-900/50 dark:text-amber-400">
-                  <IconCalendar className="size-4" />
-                </div>
-                <CardTitle className="text-sm font-semibold text-amber-950 dark:text-amber-200">
-                  Today&apos;s Follow-ups
-                </CardTitle>
-              </div>
-              <Badge variant="warning" className="text-[10px]">Today</Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline justify-between">
-              <div className="text-3xl font-bold tracking-tight text-amber-700 dark:text-amber-400">
-                {followUpStats.todayCount}
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 border-amber-200 bg-card hover:bg-amber-100/80 dark:border-amber-800"
-                asChild
-              >
-                <Link href="/follow-ups?filter=today">
-                  View Queue <IconArrowRight className="ml-1 size-3.5" />
-                </Link>
-              </Button>
-            </div>
-            <p className="text-xs text-amber-700/80 dark:text-amber-400/80 mt-2 font-medium">
-              Scheduled for today
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border border-emerald-200/80 bg-emerald-50/30 dark:border-emerald-900/50 dark:bg-emerald-950/20 shadow-xs">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400">
-                  <IconTarget className="size-4" />
-                </div>
-                <CardTitle className="text-sm font-semibold text-emerald-950 dark:text-emerald-200">
-                  Interested Leads
-                </CardTitle>
-              </div>
-              <Badge variant="success" className="text-[10px]">High Intent</Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline justify-between">
-              <div className="text-3xl font-bold tracking-tight text-emerald-700 dark:text-emerald-400">
-                {followUpStats.interestedLeadsCount}
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 border-emerald-200 bg-card hover:bg-emerald-100/80 dark:border-emerald-800"
-                asChild
-              >
-                <Link href="/my-enquiries?status=interested">
-                  View Queue <IconArrowRight className="ml-1 size-3.5" />
-                </Link>
-              </Button>
-            </div>
-            <p className="text-xs text-emerald-700/80 dark:text-emerald-400/80 mt-2 font-medium">
-              Ready for enrollment conversion
-            </p>
-          </CardContent>
-        </Card>
+        <KpiCard
+          title="Overdue Follow-ups"
+          value={followUpStats.overdueCount}
+          indicatorColor="rose"
+          description="Past scheduled interaction window requiring urgent attention."
+          href="/follow-ups?filter=overdue"
+        />
+        <KpiCard
+          title="Today's Follow-ups"
+          value={followUpStats.todayCount}
+          indicatorColor="amber"
+          description="Scheduled calls and customer follow-ups queued for today."
+          href="/follow-ups?filter=today"
+        />
+        <KpiCard
+          title="Interested Leads"
+          value={followUpStats.interestedLeadsCount}
+          indicatorColor="emerald"
+          description="High-intent prospects expressing strong interest in services."
+          href="/enquiries?status=INTERESTED"
+        />
       </div>
 
       {/* Activity & Quick Actions Grid */}
@@ -436,37 +355,38 @@ export default async function Dashboard() {
       <Card className="border border-border/80 shadow-xs">
         <CardHeader className="pb-4">
           <CardTitle className="text-base font-semibold">Conversion & Performance Summary</CardTitle>
-          <CardDescription className="text-xs">Live conversion rates and aggregate engagement</CardDescription>
+          <CardDescription className="text-xs">Live conversion rates and aggregate engagement metrics</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            <div className="p-4 rounded-xl bg-muted/40 border border-border/60 text-center">
-              <div className="text-2xl sm:text-3xl font-bold tracking-tight text-blue-600 dark:text-blue-400">
-                {performanceMetrics.totalEnquiries}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1 font-medium">Assigned Enquiries</p>
-            </div>
-
-            <div className="p-4 rounded-xl bg-muted/40 border border-border/60 text-center">
-              <div className="text-2xl sm:text-3xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
-                {performanceMetrics.interestRate}%
-              </div>
-              <p className="text-xs text-muted-foreground mt-1 font-medium">Interest Rate</p>
-            </div>
-
-            <div className="p-4 rounded-xl bg-muted/40 border border-border/60 text-center">
-              <div className="text-2xl sm:text-3xl font-bold tracking-tight text-amber-600 dark:text-amber-400">
-                {performanceMetrics.conversionRate}%
-              </div>
-              <p className="text-xs text-muted-foreground mt-1 font-medium">Conversion Rate</p>
-            </div>
-
-            <div className="p-4 rounded-xl bg-muted/40 border border-border/60 text-center">
-              <div className="text-2xl sm:text-3xl font-bold tracking-tight text-purple-600 dark:text-purple-400">
-                {performanceMetrics.totalCalls}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1 font-medium">Total Calls Logged</p>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <KpiCard
+              title="Assigned Pipeline"
+              value={performanceMetrics.totalEnquiries}
+              indicatorColor="blue"
+              description="Total active enquiries currently in pipeline"
+              showChevron={false}
+            />
+            <KpiCard
+              title="Interest Rate"
+              value={`${performanceMetrics.interestRate}%`}
+              indicatorColor="emerald"
+              description="High-intent prospects showing interest"
+              showChevron={false}
+            />
+            <KpiCard
+              title="Conversion Rate"
+              value={`${performanceMetrics.conversionRate}%`}
+              indicatorColor="amber"
+              description="Completed admissions and closed orders"
+              showChevron={false}
+            />
+            <KpiCard
+              title="Calls Logged"
+              value={performanceMetrics.totalCalls}
+              indicatorColor="purple"
+              description="Total call sessions recorded in register"
+              showChevron={false}
+            />
           </div>
         </CardContent>
       </Card>

@@ -38,6 +38,7 @@ import {
 import { ExpenseReport, DateRangeFilter } from "@/types/reports";
 import { formatCurrency } from "@/lib/utils";
 import { FinancialReportSkeleton } from "./financial-report-skeleton";
+import { KpiCard } from "@/components/dashboard/kpi-card";
 
 export function ExpenseReportContent() {
   const [reportData, setReportData] = useState<ExpenseReport | null>(null);
@@ -372,63 +373,34 @@ export function ExpenseReportContent() {
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardDescription>Total Expenses</CardDescription>
-            <IconCash className="h-4 w-4 text-red-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {formatCurrency(reportData.totalExpenses)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              All categories combined
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardDescription>Top Category</CardDescription>
-            <IconCategory className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{reportData.topCategory}</div>
-            <p className="text-xs text-muted-foreground">
-              Highest spending category
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardDescription>Categories</CardDescription>
-            <IconChartBar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {reportData.breakdown.length}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Active expense categories
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardDescription>Contributors</CardDescription>
-            <IconUser className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {reportData.userWiseExpenses.length}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Team members with expenses
-            </p>
-          </CardContent>
-        </Card>
+        <KpiCard
+          title="Total Expenses"
+          value={formatCurrency(reportData.totalExpenses)}
+          indicatorColor="rose"
+          icon={<IconCash className="h-4 w-4" />}
+          description="All categories combined"
+        />
+        <KpiCard
+          title="Top Category"
+          value={reportData.topCategory}
+          indicatorColor="amber"
+          icon={<IconCategory className="h-4 w-4" />}
+          description="Highest spending category"
+        />
+        <KpiCard
+          title="Categories"
+          value={reportData.breakdown.length}
+          indicatorColor="blue"
+          icon={<IconChartBar className="h-4 w-4" />}
+          description="Active expense categories"
+        />
+        <KpiCard
+          title="Contributors"
+          value={reportData.userWiseExpenses.length}
+          indicatorColor="purple"
+          icon={<IconUser className="h-4 w-4" />}
+          description="Team members with expenses"
+        />
       </div>
 
       {/* Main Content Tabs */}

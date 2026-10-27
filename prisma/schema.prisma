@@ -42,6 +42,7 @@ model User {
   managedJobOrders    JobOrder[]     @relation("ManagedJobOrders")
   notifications       Notification[]
   createdReceipts     Receipt[]      @relation("CreatedReceipts")
+  createdProposals    Proposal[]     @relation("CreatedProposals")
   session             session[]
   userRole            Role?          @relation(fields: [roleId], references: [id])
 
@@ -127,6 +128,7 @@ model Enquiry {
   enquirySource     EnquirySource? @relation(fields: [sourceId], references: [id])
   followUps         FollowUp[]
   jobLeads          JobLead[]
+  proposals         Proposal[]
 
   @@index([status])
   @@index([branchId])
@@ -635,3 +637,55 @@ enum BillingStatus {
   PAID
   PARTIALLY_PAID
 }
+
+model Proposal {
+  id            String         @id @default(cuid())
+  proposalNo    String         @unique
+  title         String?
+  enquiryId     String?
+  clientName    String
+  clientEmail   String?
+  clientPhone   String?
+  clientAddress String?
+  branch        String?
+  branchId      String?
+  status        String         @default("DRAFT")
+  validUntil    DateTime?
+  subtotal      Float          @default(0)
+  taxRate       Float          @default(0)
+  taxAmount     Float          @default(0)
+  discountAmount Float         @default(0)
+  totalAmount   Float          @default(0)
+  notes         String?
+  terms         String?
+  createdById   String?
+  createdByUser String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  items         ProposalItem[]
+  enquiry       Enquiry?       @relation(fields: [enquiryId], references: [id], onDelete: SetNull)
+  createdBy     User?          @relation("CreatedProposals", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([proposalNo])
+  @@index([enquiryId])
+  @@index([branchId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("proposal")
+}
+
+model ProposalItem {
+  id          String   @id @default(cuid())
+  proposalId  String
+  description String
+  quantity    Int      @default(1)
+  unitPrice   Float    @default(0)
+  total       Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  proposal    Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  @@index([proposalId])
+  @@map("proposal_item")
+}
+

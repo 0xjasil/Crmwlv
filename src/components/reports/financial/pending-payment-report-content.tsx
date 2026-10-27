@@ -42,6 +42,7 @@ import {
 import { PendingPaymentReport, DateRangeFilter } from "@/types/reports";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { FinancialReportSkeleton } from "./financial-report-skeleton";
+import { KpiCard } from "@/components/dashboard/kpi-card";
 
 export function PendingPaymentReportContent() {
   const [reportData, setReportData] = useState<PendingPaymentReport | null>(
@@ -389,65 +390,38 @@ export function PendingPaymentReportContent() {
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardDescription>Total Outstanding</CardDescription>
-            <IconCash className="h-4 w-4 text-red-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {formatCurrency(reportData.totalOutstanding)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Amount pending collection
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardDescription>Pending Students</CardDescription>
-            <IconUsers className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{reportData.totalStudents}</div>
-            <p className="text-xs text-muted-foreground">
-              Students with outstanding dues
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardDescription>High Priority</CardDescription>
-            <IconExclamationMark className="h-4 w-4 text-red-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {reportData.students.filter((s) => s.priority === "high").length}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Urgent collections needed
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardDescription>Average Outstanding</CardDescription>
-            <IconTrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(
-                reportData.totalStudents > 0
-                  ? reportData.totalOutstanding / reportData.totalStudents
-                  : 0
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">Per student average</p>
-          </CardContent>
-        </Card>
+        <KpiCard
+          title="Total Outstanding"
+          value={formatCurrency(reportData.totalOutstanding)}
+          indicatorColor="rose"
+          icon={<IconCash className="h-4 w-4" />}
+          description="Amount pending collection"
+        />
+        <KpiCard
+          title="Pending Students"
+          value={reportData.totalStudents}
+          indicatorColor="amber"
+          icon={<IconUsers className="h-4 w-4" />}
+          description="Students with outstanding dues"
+        />
+        <KpiCard
+          title="High Priority"
+          value={reportData.students.filter((s) => s.priority === "high").length}
+          indicatorColor="rose"
+          icon={<IconExclamationMark className="h-4 w-4" />}
+          description="Urgent collections needed"
+        />
+        <KpiCard
+          title="Average Outstanding"
+          value={formatCurrency(
+            reportData.totalStudents > 0
+              ? reportData.totalOutstanding / reportData.totalStudents
+              : 0
+          )}
+          indicatorColor="purple"
+          icon={<IconTrendingUp className="h-4 w-4" />}
+          description="Per student average"
+        />
       </div>
 
       {/* Main Content Tabs */}

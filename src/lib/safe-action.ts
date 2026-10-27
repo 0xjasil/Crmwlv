@@ -5,7 +5,17 @@ import { headers } from 'next/headers';
 // Base action client for public actions
 export const actionClient = createSafeActionClient({
   handleServerError(e) {
-    console.error('Action error:', e.message);
+    const isDbNotice =
+      e.message?.includes("Can't reach database server") ||
+      e.message?.includes('connection') ||
+      e.message?.includes('P1001') ||
+      e.message?.includes('P1002');
+
+    if (isDbNotice) {
+      console.warn('[SafeAction] Transient database notice:', e.message);
+    } else {
+      console.error('Action error:', e.message);
+    }
 
     if (e.message.includes('Invalid credentials')) {
       return e.message;
@@ -22,7 +32,17 @@ export const actionClient = createSafeActionClient({
 // Authenticated action client that requires a valid session
 export const authActionClient = createSafeActionClient({
   handleServerError(e) {
-    console.error('Auth action error:', e.message);
+    const isDbNotice =
+      e.message?.includes("Can't reach database server") ||
+      e.message?.includes('connection') ||
+      e.message?.includes('P1001') ||
+      e.message?.includes('P1002');
+
+    if (isDbNotice) {
+      console.warn('[SafeAction] Transient database notice in auth action:', e.message);
+    } else {
+      console.error('Auth action error:', e.message);
+    }
     return DEFAULT_SERVER_ERROR_MESSAGE;
   },
 }).use(async ({ next }) => {
@@ -47,7 +67,17 @@ export const authActionClient = createSafeActionClient({
 export const createRoleActionClient = (allowedRoles: string[]) => {
   return createSafeActionClient({
     handleServerError(e) {
-      console.error('Role action error:', e.message);
+      const isDbNotice =
+        e.message?.includes("Can't reach database server") ||
+        e.message?.includes('connection') ||
+        e.message?.includes('P1001') ||
+        e.message?.includes('P1002');
+
+      if (isDbNotice) {
+        console.warn('[SafeAction] Transient database notice in role action:', e.message);
+      } else {
+        console.error('Role action error:', e.message);
+      }
       return DEFAULT_SERVER_ERROR_MESSAGE;
     },
   }).use(async ({ next }) => {

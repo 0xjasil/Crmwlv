@@ -12,6 +12,7 @@ import { BranchReportSkeleton } from '@/components/reports/branch/branch-report-
 import { IconDownload, IconRefresh, IconSearch, IconBuilding, IconTrendingUp, IconUsers, IconTarget, IconFilter } from '@tabler/icons-react'
 import { getBranchReport } from '@/server/actions/report-actions'
 import { BranchReport, ReportFilters, DateRangeFilter } from '@/types/reports'
+import { KpiCard } from '@/components/dashboard/kpi-card'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 
@@ -203,59 +204,35 @@ export function BranchReportContent({ }: BranchReportContentProps) {
       </Card>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Branches</p>
-                <p className="text-2xl font-bold text-blue-600">{reportData.totalBranches}</p>
-              </div>
-              <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <IconBuilding className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Enquiries</p>
-                <p className="text-2xl font-bold text-green-600">{totalEnquiries}</p>
-              </div>
-              <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <IconUsers className="h-6 w-6 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
-                <p className="text-2xl font-bold text-purple-600">₹{totalRevenue.toLocaleString()}</p>
-              </div>
-              <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <IconTrendingUp className="h-6 w-6 text-purple-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Avg Conversion</p>
-                <p className="text-2xl font-bold text-orange-600">{averageConversion.toFixed(1)}%</p>
-              </div>
-              <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <IconTarget className="h-6 w-6 text-orange-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <KpiCard
+          title="Total Branches"
+          value={reportData.totalBranches}
+          indicatorColor="blue"
+          description="Operational centers and branch offices"
+          showChevron={false}
+        />
+        <KpiCard
+          title="Total Enquiries"
+          value={totalEnquiries}
+          indicatorColor="emerald"
+          description="Inbound candidate records captured"
+          showChevron={false}
+        />
+        <KpiCard
+          title="Total Revenue"
+          value={`₹${totalRevenue.toLocaleString()}`}
+          indicatorColor="purple"
+          description="Cumulative gross branch collections"
+          showChevron={false}
+        />
+        <KpiCard
+          title="Avg Conversion"
+          value={`${averageConversion.toFixed(1)}%`}
+          indicatorColor="amber"
+          description="Lead-to-enrollment conversion rate"
+          showChevron={false}
+        />
       </div>
 
       {/* Report Tabs */}

@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { KpiCard } from "@/components/dashboard/kpi-card";
 import {
   IconUsers,
   IconPhone,
@@ -350,74 +351,48 @@ export function TelecallerReportContent({
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardDescription>Total Telecallers</CardDescription>
-            <IconUsers className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {reportData.totalTelecallers}
-            </div>
-            <p className="text-xs text-muted-foreground">Active team members</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardDescription>Total Enquiries</CardDescription>
-            <IconPhone className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {reportData.performance.reduce(
-                (sum, p) => sum + p.totalEnquiries,
-                0
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Across all telecallers
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardDescription>Avg Conversion Rate</CardDescription>
-            <IconTrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {reportData.performance.length > 0
-                ? Math.round(
+        <KpiCard
+          title="Total Telecallers"
+          value={reportData.totalTelecallers}
+          indicatorColor="purple"
+          description="Active counselors & outreach callers"
+          showChevron={false}
+        />
+        <KpiCard
+          title="Total Enquiries"
+          value={reportData.performance.reduce(
+            (sum, p) => sum + p.totalEnquiries,
+            0
+          )}
+          indicatorColor="amber"
+          description="Assigned pipeline across all callers"
+          showChevron={false}
+        />
+        <KpiCard
+          title="Avg Conversion Rate"
+          value={`${
+            reportData.performance.length > 0
+              ? Math.round(
                   (reportData.performance.reduce(
                     (sum, p) => sum + p.conversionRate,
                     0
                   ) /
                     reportData.performance.length) *
-                  10
+                    10
                 ) / 10
-                : 0}
-              %
-            </div>
-            <p className="text-xs text-muted-foreground">Team average</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardDescription>Top Performer</CardDescription>
-            <IconTarget className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-bold truncate">
-              {reportData.topPerformer}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Highest conversion rate
-            </p>
-          </CardContent>
-        </Card>
+              : 0
+          }%`}
+          indicatorColor="emerald"
+          description="Team average conversion efficiency"
+          showChevron={false}
+        />
+        <KpiCard
+          title="Top Performer"
+          value={reportData.topPerformer || 'N/A'}
+          indicatorColor="blue"
+          description="Highest converting team member"
+          showChevron={false}
+        />
       </div>
 
       {/* Main Content Tabs */}

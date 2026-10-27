@@ -15,6 +15,7 @@ import { getInvoiceReport } from '@/server/actions/report-actions'
 import { InvoiceReport, ReportFilters, DateRangeFilter } from '@/types/reports'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
+import { KpiCard } from '@/components/dashboard/kpi-card'
 
 export function InvoiceReportContent() {
   const [reportData, setReportData] = useState<InvoiceReport | null>(null)
@@ -238,61 +239,36 @@ export function InvoiceReportContent() {
       </Card>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
-                <p className="text-2xl font-bold text-green-600">₹{reportData.totalRevenue.toLocaleString()}</p>
-              </div>
-              <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <IconCurrencyRupee className="h-6 w-6 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Outstanding Amount</p>
-                <p className="text-2xl font-bold text-orange-600">₹{reportData.outstandingAmount.toLocaleString()}</p>
-              </div>
-              <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <IconFileInvoice className="h-6 w-6 text-orange-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Avg Collection Time</p>
-                <p className="text-2xl font-bold text-blue-600">{reportData.averageCollectionTime} days</p>
-              </div>
-              <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <IconClock className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Invoices</p>
-                <p className="text-2xl font-bold text-purple-600">
-                  {reportData.statusBreakdown.reduce((sum, status) => sum + status.count, 0)}
-                </p>
-              </div>
-              <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <IconTrendingUp className="h-6 w-6 text-purple-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard
+          title="Total Revenue"
+          value={`₹${reportData.totalRevenue.toLocaleString()}`}
+          indicatorColor="emerald"
+          icon={<IconCurrencyRupee className="h-4 w-4" />}
+          description="Total recognized invoice revenue"
+          trend={{ value: 'Revenue', isPositive: true }}
+        />
+        <KpiCard
+          title="Outstanding Amount"
+          value={`₹${reportData.outstandingAmount.toLocaleString()}`}
+          indicatorColor="amber"
+          icon={<IconFileInvoice className="h-4 w-4" />}
+          description="Pending receivable balance"
+        />
+        <KpiCard
+          title="Avg Collection Time"
+          value={`${reportData.averageCollectionTime} days`}
+          indicatorColor="blue"
+          icon={<IconClock className="h-4 w-4" />}
+          description="Turnaround from issue to payment"
+        />
+        <KpiCard
+          title="Total Invoices"
+          value={reportData.statusBreakdown.reduce((sum, status) => sum + status.count, 0)}
+          indicatorColor="purple"
+          icon={<IconTrendingUp className="h-4 w-4" />}
+          description="Invoices across all statuses"
+        />
       </div>
 
       {/* Report Tabs */}

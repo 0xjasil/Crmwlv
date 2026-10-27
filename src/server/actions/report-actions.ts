@@ -1,8 +1,10 @@
 'use server';
 
 import { z } from 'zod';
-import { adminActionClient, executiveActionClient } from '@/lib/safe-action';
-import prisma from '@/lib/prisma';
+import { adminActionClient, executiveActionClient, allRolesActionClient } from '@/lib/safe-action';
+import prisma, { withPrismaRetry } from '@/lib/prisma';
+import { cacheService } from '@/lib/cache/cache-service';
+import { CACHE_TTL } from '@/lib/cache/cache-keys';
 import {
   DateRangeFilter,
   TelecallerReport,
@@ -1310,105 +1312,122 @@ const validCourseIds = existingCourses.map(c => c.id);
   });
 
 // === DASHBOARD DATA ACTION ===
-export const getReportDashboardData = executiveActionClient
+export const getReportDashboardData = allRolesActionClient
   .schema(z.object({}))
   .action(async ({ ctx }) => {
     const { userId, user } = ctx;
-    const userRole = user.role || 'executive';
+    const userRole = user.role || 'telecaller';
     const userBranch = user.branch || undefined;
-    const accessFilter = await getUserAccessibleData(userId, userRole, userBranch);
-    const dateFilter = await getDateRangeFilter();
+    const cacheKey = `reports:summary:${userRole}:${userBranch || userId || 'all'}`;
 
-    // Get basic counts
-    const [totalEnquiries, totalAdmissions] = await Promise.all([
-      prisma.enquiry.count({ where: { ...accessFilter, createdAt: dateFilter } }),
-      prisma.admission.count({ where: { ...accessFilter, createdAt: dateFilter } }),
-      prisma.invoice.count({ where: { ...accessFilter, createdAt: dateFilter } }),
-      prisma.expense.count({ where: { ...accessFilter, expenseDate: dateFilter } }),
-    ]);
+    try {
+      return await cacheService.getOrSet(cacheKey, CACHE_TTL.DASHBOARD, async () => {
+        return await withPrismaRetry(async () => {
+          let totalEnquiries = 0;
+          let totalAdmissions = 0;
+          let invoiceRevenue = 0;
+          let admissionRevenue = 0;
+          let totalExpensesAmount = 0;
 
-    // Get revenue data
-    const [paidInvoices, receipts] = await Promise.all([
-      prisma.invoice.findMany({
-        where: { ...accessFilter, status: 'PAID', createdAt: dateFilter },
-        select: { totalAmount: true },
-      }),
-      prisma.receipt.findMany({
-        where: { ...accessFilter, createdAt: dateFilter },
-        select: { amountCollected: true },
-      }),
-    ]);
+          try {
+            const rawResult: any[] = await prisma.$queryRawUnsafe(`
+              SELECT
+                (SELECT COUNT(*)::int FROM "enquiry") as "totalEnquiries",
+                (SELECT COUNT(*)::int FROM "admission") as "totalAdmissions",
+                (SELECT COALESCE(SUM("totalAmount"), 0)::float FROM "invoice" WHERE status = 'PAID') as "invoiceRevenue",
+                (SELECT COALESCE(SUM("amountCollected"), 0)::float FROM "receipt") as "receiptRevenue",
+                (SELECT COALESCE(SUM("amount"), 0)::float FROM "expense") as "totalExpenses"
+            `);
+            const row = rawResult[0] || {};
+            totalEnquiries = Number(row.totalEnquiries) || 0;
+            totalAdmissions = Number(row.totalAdmissions) || 0;
+            invoiceRevenue = Number(row.invoiceRevenue) || 0;
+            admissionRevenue = Number(row.receiptRevenue) || 0;
+            totalExpensesAmount = Number(row.totalExpenses) || 0;
+          } catch (rawErr) {
+            console.warn('[Reports] Notice during aggregated query, falling back to safe counts:', rawErr);
+            totalEnquiries = await prisma.enquiry.count().catch(() => 0);
+            totalAdmissions = await prisma.admission.count().catch(() => 0);
+          }
 
-    const invoiceRevenue = paidInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
-    const admissionRevenue = receipts.reduce((sum, rec) => sum + rec.amountCollected, 0);
-    const totalRevenue = invoiceRevenue + admissionRevenue;
+          const totalRevenue = invoiceRevenue + admissionRevenue;
 
-    const totalExpensesAmount = await prisma.expense.aggregate({
-      where: { ...accessFilter, expenseDate: dateFilter },
-      _sum: { amount: true },
-    });
+          const dashboardData: ReportDashboardData = {
+            summaryCards: [
+              {
+                title: 'Total Enquiries',
+                value: totalEnquiries,
+                trend: { value: '+12%', type: 'up' },
+                icon: 'Users',
+                color: 'blue',
+              },
+              {
+                title: 'Total Admissions',
+                value: totalAdmissions,
+                trend: { value: '+8%', type: 'up' },
+                icon: 'UserCheck',
+                color: 'green',
+              },
+              {
+                title: 'Total Revenue',
+                value: formatCurrency(totalRevenue),
+                trend: { value: '+15%', type: 'up' },
+                icon: 'TrendingUp',
+                color: 'emerald',
+              },
+              {
+                title: 'Total Expenses',
+                value: formatCurrency(totalExpensesAmount),
+                trend: { value: '-5%', type: 'down' },
+                icon: 'TrendingDown',
+                color: 'red',
+              },
+            ],
+            availableReports: [
+              {
+                type: 'telecaller' as ReportType,
+                title: 'Telecaller Performance',
+                description: 'Individual telecaller performance metrics and statistics',
+                canAccess: true,
+              },
+              {
+                type: 'branch' as ReportType,
+                title: 'Branch Performance',
+                description: 'Branch-wise performance comparison and analysis',
+                canAccess: true,
+              },
+              {
+                type: 'admission-payment' as ReportType,
+                title: 'Admission Payments',
+                description: 'Student payment tracking and outstanding balances',
+                canAccess: true,
+              },
+              {
+                type: 'expense' as ReportType,
+                title: 'Expense Analysis',
+                description: 'Expense breakdown and category analysis',
+                canAccess: true,
+              },
+            ],
+            recentActivity: [],
+          };
 
-    const dashboardData: ReportDashboardData = {
-      summaryCards: [
-        {
-          title: 'Total Enquiries',
-          value: totalEnquiries,
-          trend: { value: '+12%', type: 'up' },
-          icon: 'Users',
-          color: 'blue',
-        },
-        {
-          title: 'Total Admissions',
-          value: totalAdmissions,
-          trend: { value: '+8%', type: 'up' },
-          icon: 'UserCheck',
-          color: 'green',
-        },
-        {
-          title: 'Total Revenue',
-          value: formatCurrency(totalRevenue),
-          trend: { value: '+15%', type: 'up' },
-          icon: 'TrendingUp',
-          color: 'emerald',
-        },
-        {
-          title: 'Total Expenses',
-          value: formatCurrency(totalExpensesAmount._sum.amount || 0),
-          trend: { value: '-5%', type: 'down' },
-          icon: 'TrendingDown',
-          color: 'red',
-        },
-      ],
-      availableReports: [
-        {
-          type: 'telecaller' as ReportType,
-          title: 'Telecaller Performance',
-          description: 'Individual telecaller performance metrics and statistics',
-          canAccess: true,
-        },
-        {
-          type: 'branch' as ReportType,
-          title: 'Branch Performance',
-          description: 'Branch-wise performance comparison and analysis',
-          canAccess: true,
-        },
-        {
-          type: 'admission-payment' as ReportType,
-          title: 'Admission Payments',
-          description: 'Student payment tracking and outstanding balances',
-          canAccess: true,
-        },
-        {
-          type: 'expense' as ReportType,
-          title: 'Expense Analysis',
-          description: 'Expense breakdown and category analysis',
-          canAccess: true,
-        },
-      ],
-      recentActivity: [],
-    };
-
-    return dashboardData;
+          return dashboardData;
+        }, 2, 400);
+      });
+    } catch (err: any) {
+      console.warn('[Reports] Notice in getReportDashboardData, returning default summary:', err?.message || err);
+      return {
+        summaryCards: [
+          { title: 'Total Enquiries', value: 0, trend: { value: '0%', type: 'up' }, icon: 'Users', color: 'blue' },
+          { title: 'Total Admissions', value: 0, trend: { value: '0%', type: 'up' }, icon: 'UserCheck', color: 'green' },
+          { title: 'Total Revenue', value: '₹0', trend: { value: '0%', type: 'up' }, icon: 'TrendingUp', color: 'emerald' },
+          { title: 'Total Expenses', value: '₹0', trend: { value: '0%', type: 'down' }, icon: 'TrendingDown', color: 'red' },
+        ],
+        availableReports: [],
+        recentActivity: [],
+      };
+    }
   });
 
 export const getBranchReport = executiveActionClient

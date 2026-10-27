@@ -189,15 +189,19 @@ export function PermissionsDialog({ user, isOpen, onClose }: PermissionsDialogPr
                 </p>
               </div>
               <Select value={selectedRole} onValueChange={handlePositionChange} disabled={isExecuting}>
-                <SelectTrigger className="w-full sm:w-64 h-9 text-xs bg-background">
-                  <SelectValue placeholder="Select Position" />
+                <SelectTrigger className="w-full sm:w-64 h-9 text-xs bg-background truncate">
+                  <SelectValue placeholder="Select Position">
+                    {SOFTWARE_POSITIONS.find((p) => p.id === selectedRole)?.title}
+                  </SelectValue>
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
                   {SOFTWARE_POSITIONS.map((pos) => (
                     <SelectItem key={pos.id} value={pos.id} className="text-xs">
-                      <div className="flex flex-col py-0.5">
+                      <div className="flex flex-col py-0.5 text-left">
                         <span className="font-medium text-foreground">{pos.title}</span>
-                        <span className="text-[10px] text-muted-foreground">{pos.description}</span>
+                        <span className="text-[10px] text-muted-foreground whitespace-normal leading-snug">
+                          {pos.description}
+                        </span>
                       </div>
                     </SelectItem>
                   ))}

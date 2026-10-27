@@ -160,8 +160,8 @@ async function runTests() {
     // Scenario 7: Passwords securely hashed & never returned to client
     // -----------------------------------------------------------
     console.log('\nScenario 7: Password Security & Hash Validation');
-    assert(createResult?.user?.password === undefined, 'Raw password is stripped from creation result');
-    assert(loginResult?.user?.password === undefined, 'Password is stripped from login result');
+    assert((createResult?.user as any)?.password === undefined, 'Raw password is stripped from creation result');
+    assert((loginResult?.user as any)?.password === undefined, 'Password is stripped from login result');
 
     const rawDbUser = await prisma.user.findUnique({
       where: { id: createdUserId! },
@@ -171,7 +171,7 @@ async function runTests() {
       typeof rawDbUser?.password === 'string' && rawDbUser.password.startsWith('$2b$10$'),
       'Password stored with bcrypt cost factor 10 ($2b$10$...)'
     );
-    assert(rawDbUser?.password.length === 60, 'Bcrypt hash length is exactly 60 characters');
+    assert(Boolean(rawDbUser?.password && rawDbUser.password.length === 60), 'Bcrypt hash length is exactly 60 characters');
 
     // -----------------------------------------------------------
     // Scenario 8: Credential records created correctly
